@@ -1,0 +1,8 @@
+So Basically i want to build a go backend for video Analyse in it there will be Multiple fetures as per the flow
+1. there will be a folder as videos in which there will be the video's which should be Analyse
+2. that all videos should be Analyse and the number count per fram should be taken and as well the total count of people in the video should be give and then there will be a proper flow person traking in it
+3. there will be a Feature as person finding as in the folder finder the images present in it will be anylise in all the videos and if face macth in the video then the time stamp from first time person Appeared and last time Appeared will be shown in whole video timestap
+FOr now i want to make this type of backend with all the api Documentation i want to make this project using cursor so i want a proper Prompt to give Cursor to make this project backend properly with all api Documentation and it shownd work Properly as per the Features
+
+
+Heyy so I want to make project using Go backend and ai ml can you help me out
