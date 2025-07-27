@@ -145,6 +145,38 @@ func (db *Database) migrate() error {
 			FOREIGN KEY (reference_image_id) REFERENCES reference_images (id) ON DELETE CASCADE
 		)`,
 
+		// Persons table for unique people detected
+		`CREATE TABLE IF NOT EXISTS persons (
+			id TEXT PRIMARY KEY,
+			video_id TEXT NOT NULL,
+			person_number INTEGER NOT NULL,
+			first_frame INTEGER,
+			last_frame INTEGER,
+			first_time REAL,
+			last_time REAL,
+			total_frames INTEGER DEFAULT 0,
+			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+			FOREIGN KEY (video_id) REFERENCES videos (id) ON DELETE CASCADE
+		)`,
+
+		// Person faces table for storing face images
+		`CREATE TABLE IF NOT EXISTS person_faces (
+			id TEXT PRIMARY KEY,
+			person_id TEXT NOT NULL,
+			video_id TEXT NOT NULL,
+			frame_number INTEGER,
+			timestamp REAL,
+			bounding_box_x REAL,
+			bounding_box_y REAL,
+			bounding_box_width REAL,
+			bounding_box_height REAL,
+			confidence REAL,
+			face_image TEXT,
+			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+			FOREIGN KEY (person_id) REFERENCES persons (id) ON DELETE CASCADE,
+			FOREIGN KEY (video_id) REFERENCES videos (id) ON DELETE CASCADE
+		)`,
+
 		// Create indexes for better performance
 		`CREATE INDEX IF NOT EXISTS idx_videos_status ON videos (status)`,
 		`CREATE INDEX IF NOT EXISTS idx_analysis_jobs_video_id ON analysis_jobs (video_id)`,
@@ -153,6 +185,9 @@ func (db *Database) migrate() error {
 		`CREATE INDEX IF NOT EXISTS idx_search_jobs_status ON search_jobs (status)`,
 		`CREATE INDEX IF NOT EXISTS idx_search_results_video_id ON search_results (video_id)`,
 		`CREATE INDEX IF NOT EXISTS idx_search_results_reference_image_id ON search_results (reference_image_id)`,
+		`CREATE INDEX IF NOT EXISTS idx_persons_video_id ON persons (video_id)`,
+		`CREATE INDEX IF NOT EXISTS idx_person_faces_person_id ON person_faces (person_id)`,
+		`CREATE INDEX IF NOT EXISTS idx_person_faces_video_id ON person_faces (video_id)`,
 	}
 
 	for _, query := range queries {

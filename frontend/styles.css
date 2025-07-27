@@ -1,0 +1,216 @@
+/* Additional styles for Video Analysis Service Frontend */
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+    width: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #667eea;
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #5a6fd8;
+}
+
+/* File upload drag and drop */
+.file-input.dragover .file-input-label {
+    background: #667eea;
+    color: white;
+    border-color: #5a6fd8;
+}
+
+/* Animation for data cards */
+.data-card {
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.data-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 16px rgba(0,0,0,0.2);
+}
+
+/* Loading animation for buttons */
+.btn.loading {
+    position: relative;
+    color: transparent;
+}
+
+.btn.loading::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 20px;
+    height: 20px;
+    margin: -10px 0 0 -10px;
+    border: 2px solid transparent;
+    border-top: 2px solid white;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+/* Toast notifications */
+.toast {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    padding: 16px 20px;
+    z-index: 1000;
+    transform: translateX(100%);
+    transition: transform 0.3s ease;
+}
+
+.toast.show {
+    transform: translateX(0);
+}
+
+.toast.success {
+    border-left: 4px solid #28a745;
+}
+
+.toast.error {
+    border-left: 4px solid #dc3545;
+}
+
+.toast.info {
+    border-left: 4px solid #17a2b8;
+}
+
+/* Modal styles */
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0,0,0,0.5);
+}
+
+.modal.show {
+    display: block;
+}
+
+.modal-content {
+    background-color: white;
+    margin: 5% auto;
+    padding: 30px;
+    border-radius: 10px;
+    width: 90%;
+    max-width: 600px;
+    position: relative;
+}
+
+.modal-close {
+    position: absolute;
+    top: 15px;
+    right: 20px;
+    font-size: 24px;
+    cursor: pointer;
+    color: #666;
+}
+
+.modal-close:hover {
+    color: #333;
+}
+
+/* Form validation styles */
+.form-group.error input,
+.form-group.error textarea,
+.form-group.error select {
+    border-color: #dc3545;
+}
+
+.form-group.error .error-message {
+    color: #dc3545;
+    font-size: 0.9rem;
+    margin-top: 5px;
+}
+
+/* Responsive improvements */
+@media (max-width: 480px) {
+    .container {
+        padding: 10px;
+    }
+    
+    .header h1 {
+        font-size: 1.8rem;
+    }
+    
+    .tab-content {
+        padding: 20px;
+    }
+    
+    .data-grid {
+        grid-template-columns: 1fr;
+        gap: 15px;
+    }
+    
+    .btn {
+        width: 100%;
+        margin-bottom: 10px;
+    }
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+    body {
+        background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+        color: #ecf0f1;
+    }
+    
+    .tab-content {
+        background: #2c3e50;
+        color: #ecf0f1;
+    }
+    
+    .data-card {
+        background: #34495e;
+        color: #ecf0f1;
+    }
+    
+    .form-group input,
+    .form-group textarea,
+    .form-group select {
+        background: #34495e;
+        color: #ecf0f1;
+        border-color: #5a6c7d;
+    }
+    
+    .file-input-label {
+        background: #34495e;
+        color: #667eea;
+        border-color: #667eea;
+    }
+}
+
+/* Print styles */
+@media print {
+    .tabs,
+    .btn,
+    .loading {
+        display: none !important;
+    }
+    
+    .tab-content {
+        display: block !important;
+        box-shadow: none;
+        border: 1px solid #ccc;
+    }
+    
+    .data-card {
+        break-inside: avoid;
+        border: 1px solid #ccc;
+    }
+} 

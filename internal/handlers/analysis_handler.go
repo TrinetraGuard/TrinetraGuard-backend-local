@@ -239,3 +239,53 @@ func (h *AnalysisHandler) StartBatchAnalysis(c *gin.Context) {
 		"total":   len(jobs),
 	})
 }
+
+// GetEnhancedAnalysisResults godoc
+// @Summary Get enhanced analysis results with faces
+// @Description Get detailed analysis results including detected persons and their faces
+// @Tags analysis
+// @Produce json
+// @Param videoId path string true "Video ID"
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} models.ErrorResponse
+// @Failure 404 {object} models.ErrorResponse
+// @Failure 500 {object} models.ErrorResponse
+// @Router /analysis/{videoId}/enhanced-results [get]
+func (h *AnalysisHandler) GetEnhancedAnalysisResults(c *gin.Context) {
+	videoID := c.Param("videoId")
+	if videoID == "" {
+		c.JSON(http.StatusBadRequest, models.ErrorResponse{
+			Success:   false,
+			Error:     "invalid_video_id",
+			Message:   "Video ID is required",
+			RequestID: c.GetString("request_id"),
+		})
+		return
+	}
+
+	results, err := h.analysisService.GetEnhancedAnalysisResults(videoID)
+	if err != nil {
+		h.log.Error("Failed to get enhanced analysis results", zap.String("video_id", videoID), zap.Error(err))
+		if err.Error() == "analysis results not found" {
+			c.JSON(http.StatusNotFound, models.ErrorResponse{
+				Success:   false,
+				Error:     "not_found",
+				Message:   "Analysis results not found",
+				RequestID: c.GetString("request_id"),
+			})
+		} else {
+			c.JSON(http.StatusInternalServerError, models.ErrorResponse{
+				Success:   false,
+				Error:     "results_failed",
+				Message:   "Failed to get enhanced analysis results",
+				RequestID: c.GetString("request_id"),
+			})
+		}
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"results": results,
+	})
+}

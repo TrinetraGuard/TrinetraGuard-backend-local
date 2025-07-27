@@ -263,10 +263,139 @@ func (s *AnalysisService) createMockResults(jobID string) {
 		return
 	}
 
+	// Create mock persons with faces
+	s.createMockPersons(videoID)
+
 	// Update video status to analyzed
 	query = `UPDATE videos SET status = ?, updated_at = ? WHERE id = ?`
 	_, err = s.db.Exec(query, models.VideoStatusAnalyzed, time.Now(), videoID)
 	if err != nil {
 		s.log.Error("Failed to update video status", zap.String("video_id", videoID), zap.Error(err))
 	}
+}
+
+// createMockPersons creates mock person and face data
+func (s *AnalysisService) createMockPersons(videoID string) {
+	// Create Person 1
+	person1ID := uuid.New().String()
+	query := `INSERT INTO persons (id, video_id, person_number, first_frame, last_frame, first_time, last_time, total_frames, created_at) 
+			  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+	_, err := s.db.Exec(query, person1ID, videoID, 1, 1, 3, 0.0, 2.0, 3, time.Now())
+	if err != nil {
+		s.log.Error("Failed to create person 1", zap.String("video_id", videoID), zap.Error(err))
+		return
+	}
+
+	// Create Person 2
+	person2ID := uuid.New().String()
+	_, err = s.db.Exec(query, person2ID, videoID, 2, 1, 3, 0.0, 2.0, 3, time.Now())
+	if err != nil {
+		s.log.Error("Failed to create person 2", zap.String("video_id", videoID), zap.Error(err))
+		return
+	}
+
+	// Create mock face images (base64 encoded placeholder images)
+	// Simple face-like SVG converted to base64
+	face1Image := "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgdmlld0JveD0iMCAwIDEwMCAxMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIiBmaWxsPSIjRkZGRkZGIi8+CjxyZWN0IHg9IjIwIiB5PSIyMCIgd2lkdGg9IjEwIiBoZWlnaHQ9IjEwIiBmaWxsPSIjMzMzMzMzIi8+CjxyZWN0IHg9IjcwIiB5PSIyMCIgd2lkdGg9IjEwIiBoZWlnaHQ9IjEwIiBmaWxsPSIjMzMzMzMzIi8+CjxyZWN0IHg9IjQwIiB5PSI0MCIgd2lkdGg9IjIwIiBoZWlnaHQ9IjEwIiBmaWxsPSIjMzMzMzMzIi8+CjxyZWN0IHg9IjMwIiB5PSI2MCIgd2lkdGg9IjQwIiBoZWlnaHQ9IjEwIiBmaWxsPSIjMzMzMzMzIi8+Cjwvc3ZnPgo="
+	face2Image := "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgdmlld0JveD0iMCAwIDEwMCAxMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIiBmaWxsPSIjRkZGRkZGIi8+CjxyZWN0IHg9IjE1IiB5PSIyMCIgd2lkdGg9IjEwIiBoZWlnaHQ9IjEwIiBmaWxsPSIjMzMzMzMzIi8+CjxyZWN0IHg9Ijc1IiB5PSIyMCIgd2lkdGg9IjEwIiBoZWlnaHQ9IjEwIiBmaWxsPSIjMzMzMzMzIi8+CjxyZWN0IHg9IjQwIiB5PSI0MCIgd2lkdGg9IjIwIiBoZWlnaHQ9IjEwIiBmaWxsPSIjMzMzMzMzIi8+CjxyZWN0IHg9IjI1IiB5PSI2MCIgd2lkdGg9IjUwIiBoZWlnaHQ9IjEwIiBmaWxsPSIjMzMzMzMzIi8+Cjwvc3ZnPgo="
+
+	// Create face for Person 1
+	face1ID := uuid.New().String()
+	query = `INSERT INTO person_faces (id, person_id, video_id, frame_number, timestamp, 
+			 bounding_box_x, bounding_box_y, bounding_box_width, bounding_box_height, confidence, face_image, created_at) 
+			 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+	_, err = s.db.Exec(query, face1ID, person1ID, videoID, 2, 1.0, 100.0, 150.0, 80.0, 200.0, 0.85, face1Image, time.Now())
+	if err != nil {
+		s.log.Error("Failed to create face 1", zap.String("person_id", person1ID), zap.Error(err))
+	}
+
+	// Create face for Person 2
+	face2ID := uuid.New().String()
+	_, err = s.db.Exec(query, face2ID, person2ID, videoID, 2, 1.0, 300.0, 200.0, 70.0, 180.0, 0.87, face2Image, time.Now())
+	if err != nil {
+		s.log.Error("Failed to create face 2", zap.String("person_id", person2ID), zap.Error(err))
+	}
+}
+
+// GetEnhancedAnalysisResults retrieves analysis results with person and face data
+func (s *AnalysisService) GetEnhancedAnalysisResults(videoID string) (*models.EnhancedAnalysisResult, error) {
+	// Get basic analysis results
+	query := `SELECT id, job_id, video_id, total_frames, total_people, unique_people, 
+			  people_per_frame, tracking_data, created_at FROM analysis_results 
+			  WHERE video_id = ? ORDER BY created_at DESC LIMIT 1`
+
+	var result models.EnhancedAnalysisResult
+	err := s.db.QueryRow(query, videoID).Scan(
+		&result.ID, &result.JobID, &result.VideoID, &result.TotalFrames,
+		&result.TotalPeople, &result.UniquePeople, &result.PeoplePerFrame,
+		&result.TrackingData, &result.CreatedAt,
+	)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, fmt.Errorf("analysis results not found")
+		}
+		return nil, fmt.Errorf("failed to get analysis results: %w", err)
+	}
+
+	// Get persons with their best faces
+	persons, err := s.getPersonsWithFaces(videoID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get persons: %w", err)
+	}
+
+	result.Persons = persons
+	return &result, nil
+}
+
+// getPersonsWithFaces retrieves all persons for a video with their best face
+func (s *AnalysisService) getPersonsWithFaces(videoID string) ([]models.Person, error) {
+	query := `SELECT id, video_id, person_number, first_frame, last_frame, first_time, last_time, total_frames, created_at 
+			  FROM persons WHERE video_id = ? ORDER BY person_number`
+
+	rows, err := s.db.Query(query, videoID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query persons: %w", err)
+	}
+	defer rows.Close()
+
+	var persons []models.Person
+	for rows.Next() {
+		var person models.Person
+		err := rows.Scan(
+			&person.ID, &person.VideoID, &person.PersonNumber, &person.FirstFrame, &person.LastFrame,
+			&person.FirstTime, &person.LastTime, &person.TotalFrames, &person.CreatedAt,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan person: %w", err)
+		}
+
+		// Get best face for this person (highest confidence)
+		face, err := s.getBestFaceForPerson(person.ID)
+		if err == nil {
+			person.BestFace = *face
+		}
+
+		persons = append(persons, person)
+	}
+
+	return persons, nil
+}
+
+// getBestFaceForPerson retrieves the best face (highest confidence) for a person
+func (s *AnalysisService) getBestFaceForPerson(personID string) (*models.PersonFace, error) {
+	query := `SELECT id, person_id, video_id, frame_number, timestamp, 
+			  bounding_box_x, bounding_box_y, bounding_box_width, bounding_box_height, confidence, face_image, created_at 
+			  FROM person_faces WHERE person_id = ? ORDER BY confidence DESC LIMIT 1`
+
+	var face models.PersonFace
+	err := s.db.QueryRow(query, personID).Scan(
+		&face.ID, &face.PersonID, &face.VideoID, &face.FrameNumber, &face.Timestamp,
+		&face.BoundingBox.X, &face.BoundingBox.Y, &face.BoundingBox.Width, &face.BoundingBox.Height,
+		&face.Confidence, &face.FaceImage, &face.CreatedAt,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get best face: %w", err)
+	}
+
+	return &face, nil
 }

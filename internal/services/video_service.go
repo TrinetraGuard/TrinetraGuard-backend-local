@@ -102,9 +102,12 @@ func (s *VideoService) GetVideo(id string) (*models.Video, error) {
 			  width, height, status, created_at, updated_at FROM videos WHERE id = ?`
 
 	var video models.Video
+	var duration sql.NullFloat64
+	var frameCount, width, height sql.NullInt64
+
 	err := s.db.QueryRow(query, id).Scan(
 		&video.ID, &video.Filename, &video.OriginalFilename, &video.FileSize,
-		&video.Duration, &video.FrameCount, &video.Width, &video.Height,
+		&duration, &frameCount, &width, &height,
 		&video.Status, &video.CreatedAt, &video.UpdatedAt,
 	)
 	if err != nil {
@@ -113,7 +116,18 @@ func (s *VideoService) GetVideo(id string) (*models.Video, error) {
 		}
 		return nil, fmt.Errorf("failed to get video: %w", err)
 	}
-
+	if duration.Valid {
+		video.Duration = duration.Float64
+	}
+	if frameCount.Valid {
+		video.FrameCount = int(frameCount.Int64)
+	}
+	if width.Valid {
+		video.Width = int(width.Int64)
+	}
+	if height.Valid {
+		video.Height = int(height.Int64)
+	}
 	return &video, nil
 }
 
@@ -141,13 +155,27 @@ func (s *VideoService) ListVideos(limit, offset int) ([]models.Video, int, error
 	var videos []models.Video
 	for rows.Next() {
 		var video models.Video
+		var duration sql.NullFloat64
+		var frameCount, width, height sql.NullInt64
 		err := rows.Scan(
 			&video.ID, &video.Filename, &video.OriginalFilename, &video.FileSize,
-			&video.Duration, &video.FrameCount, &video.Width, &video.Height,
+			&duration, &frameCount, &width, &height,
 			&video.Status, &video.CreatedAt, &video.UpdatedAt,
 		)
 		if err != nil {
 			return nil, 0, fmt.Errorf("failed to scan video: %w", err)
+		}
+		if duration.Valid {
+			video.Duration = duration.Float64
+		}
+		if frameCount.Valid {
+			video.FrameCount = int(frameCount.Int64)
+		}
+		if width.Valid {
+			video.Width = int(width.Int64)
+		}
+		if height.Valid {
+			video.Height = int(height.Int64)
 		}
 		videos = append(videos, video)
 	}

@@ -186,3 +186,44 @@ const (
 	VideoStatusAnalyzed  = "analyzed"
 	VideoStatusFailed    = "failed"
 )
+
+// PersonFace represents a detected face of a person
+type PersonFace struct {
+	ID          string      `json:"id" db:"id"`
+	PersonID    string      `json:"person_id" db:"person_id"`
+	VideoID     string      `json:"video_id" db:"video_id"`
+	FrameNumber int         `json:"frame_number" db:"frame_number"`
+	Timestamp   float64     `json:"timestamp" db:"timestamp"`
+	BoundingBox BoundingBox `json:"bounding_box" db:"bounding_box"`
+	Confidence  float64     `json:"confidence" db:"confidence"`
+	FaceImage   string      `json:"face_image" db:"face_image"` // Base64 encoded face image
+	CreatedAt   time.Time   `json:"created_at" db:"created_at"`
+}
+
+// Person represents a unique person detected in a video
+type Person struct {
+	ID           string     `json:"id" db:"id"`
+	VideoID      string     `json:"video_id" db:"video_id"`
+	PersonNumber int        `json:"person_number" db:"person_number"`
+	FirstFrame   int        `json:"first_frame" db:"first_frame"`
+	LastFrame    int        `json:"last_frame" db:"last_frame"`
+	FirstTime    float64    `json:"first_time" db:"first_time"`
+	LastTime     float64    `json:"last_time" db:"last_time"`
+	TotalFrames  int        `json:"total_frames" db:"total_frames"`
+	BestFace     PersonFace `json:"best_face,omitempty" db:"best_face"`
+	CreatedAt    time.Time  `json:"created_at" db:"created_at"`
+}
+
+// Enhanced AnalysisResult with face data
+type EnhancedAnalysisResult struct {
+	ID             string          `json:"id" db:"id"`
+	JobID          string          `json:"job_id" db:"job_id"`
+	VideoID        string          `json:"video_id" db:"video_id"`
+	TotalFrames    int             `json:"total_frames" db:"total_frames"`
+	TotalPeople    int             `json:"total_people" db:"total_people"`
+	UniquePeople   int             `json:"unique_people" db:"unique_people"`
+	PeoplePerFrame json.RawMessage `json:"people_per_frame" db:"people_per_frame"`
+	TrackingData   json.RawMessage `json:"tracking_data" db:"tracking_data"`
+	Persons        []Person        `json:"persons,omitempty" db:"persons"`
+	CreatedAt      time.Time       `json:"created_at" db:"created_at"`
+}

@@ -60,7 +60,8 @@ func main() {
 	if err != nil {
 		logger.Fatal("Failed to initialize database", zap.Error(err))
 	}
-	defer db.Close()
+	// Note: Don't close the database connection here as services need it
+	// defer db.Close() - Removed to prevent premature closure
 
 	// Initialize services
 	videoService := services.NewVideoService(db.DB, cfg)
@@ -106,6 +107,7 @@ func main() {
 			analysis.POST("/:videoId/start", analysisHandler.StartAnalysis)
 			analysis.GET("/:videoId/status", analysisHandler.GetAnalysisStatus)
 			analysis.GET("/:videoId/results", analysisHandler.GetAnalysisResults)
+			analysis.GET("/:videoId/enhanced-results", analysisHandler.GetEnhancedAnalysisResults)
 			analysis.POST("/batch", analysisHandler.StartBatchAnalysis)
 		}
 
