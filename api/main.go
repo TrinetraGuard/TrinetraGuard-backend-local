@@ -25,9 +25,10 @@ func main() {
 	r.Use(cors.New(config))
 
 	// Create upload directories if they don't exist
-	os.MkdirAll("videos", 0755)
-	os.MkdirAll("faces", 0755)
-	os.MkdirAll("storage", 0755)
+	os.MkdirAll("../storage/videos", 0755)
+	os.MkdirAll("../storage/faces", 0755)
+	os.MkdirAll("../storage/data", 0755)
+	os.MkdirAll("../storage/temp", 0755)
 
 	// Initialize video storage
 	handlers.InitializeStorage()
@@ -50,28 +51,33 @@ func main() {
 func setupRoutes(r *gin.Engine) {
 	// Serve the frontend
 	r.GET("/", func(c *gin.Context) {
-		c.File("index.html")
+		c.File("../frontend/pages/index.html")
 	})
 
 	// Serve the storage page
 	r.GET("/storage", func(c *gin.Context) {
-		c.File("storage.html")
+		c.File("../frontend/pages/storage.html")
 	})
 
 	// API routes
 	api := r.Group("/api")
 	{
 		api.POST("/upload-video", handlers.UploadVideoHandler)
+		api.POST("/search-by-face", handlers.SearchByFaceHandler)
 		api.GET("/health", handlers.HealthCheckHandler)
-		
+
 		// Storage management routes
 		api.GET("/videos", handlers.ListVideosHandler)
+		api.GET("/videos/active", handlers.ListActiveVideosHandler)
+		api.GET("/videos/archived", handlers.ListArchivedVideosHandler)
+		api.GET("/videos/search", handlers.SearchVideosHandler)
 		api.GET("/videos/:id", handlers.GetVideoHandler)
 		api.DELETE("/videos/:id", handlers.DeleteVideoHandler)
+		api.POST("/videos/:id/restore", handlers.RestoreVideoHandler)
 		api.GET("/videos/stats", handlers.GetVideoStatsHandler)
 		api.POST("/videos/cleanup", handlers.CleanupOldVideosHandler)
 	}
 
 	// Serve static files
-	r.Static("/faces", "./faces")
+	r.Static("/faces", "../storage/faces")
 }

@@ -1,0 +1,86 @@
+{
+  "records": {
+    "video_1753706597": {
+      "id": "video_1753706597",
+      "original_filename": "VID20250220152617.mp4",
+      "stored_path": "../storage/videos/1753706597_VID20250220152617.mp4",
+      "upload_time": "2025-07-28T18:13:17.118699+05:30",
+      "status": "completed",
+      "processing_time": 36.576179959,
+      "unique_faces_count": 8,
+      "face_images": [
+        "faces/face_000.jpg",
+        "faces/face_001.jpg",
+        "faces/face_002.jpg",
+        "faces/face_003.jpg",
+        "faces/face_004.jpg",
+        "faces/face_005.jpg",
+        "faces/face_006.jpg",
+        "faces/face_007.jpg"
+      ],
+      "is_archived": true,
+      "last_accessed": "2025-07-28T18:21:05.171101+05:30",
+      "location_name": "Sandip Foundation ",
+      "latitude": 19.9621,
+      "longitude": 73.6709
+    },
+    "video_1753706778": {
+      "id": "video_1753706778",
+      "original_filename": "People Walking Free Stock Footage, Royalty-Free No Copyright Content.mp4",
+      "stored_path": "../storage/videos/1753706778_People Walking Free Stock Footage, Royalty-Free No Copyright Content.mp4",
+      "upload_time": "2025-07-28T18:16:18.457544+05:30",
+      "status": "completed",
+      "processing_time": 36.83850575,
+      "unique_faces_count": 22,
+      "face_images": [
+        "faces/face_000.jpg",
+        "faces/face_001.jpg",
+        "faces/face_002.jpg",
+        "faces/face_003.jpg",
+        "faces/face_004.jpg",
+        "faces/face_005.jpg",
+        "faces/face_006.jpg",
+        "faces/face_007.jpg",
+        "faces/face_008.jpg",
+        "faces/face_009.jpg",
+        "faces/face_010.jpg",
+        "faces/face_011.jpg",
+        "faces/face_012.jpg",
+        "faces/face_013.jpg",
+        "faces/face_014.jpg",
+        "faces/face_015.jpg",
+        "faces/face_016.jpg",
+        "faces/face_017.jpg",
+        "faces/face_018.jpg",
+        "faces/face_019.jpg",
+        "faces/face_020.jpg",
+        "faces/face_021.jpg"
+      ],
+      "is_archived": false,
+      "last_accessed": "0001-01-01T00:00:00Z",
+      "location_name": "Niko",
+      "latitude": 22.22,
+      "longitude": 63.3
+    },
+    "video_1753707111": {
+      "id": "video_1753707111",
+      "original_filename": "VID20250220162439.mp4",
+      "stored_path": "../storage/videos/1753707111_VID20250220162439.mp4",
+      "upload_time": "2025-07-28T18:21:51.27+05:30",
+      "status": "completed",
+      "processing_time": 36.734071125,
+      "unique_faces_count": 4,
+      "face_images": [
+        "faces/video_1753707111_face_000.jpg",
+        "faces/video_1753707111_face_001.jpg",
+        "faces/video_1753707111_face_002.jpg",
+        "faces/video_1753707111_face_003.jpg"
+      ],
+      "is_archived": false,
+      "last_accessed": "0001-01-01T00:00:00Z",
+      "location_name": "buddy",
+      "latitude": 21.21,
+      "longitude": 21.12
+    }
+  }
+}
