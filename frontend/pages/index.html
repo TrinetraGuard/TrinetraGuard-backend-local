@@ -1,0 +1,1625 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Video Face Detection - Trinetr</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+
+        .nav-buttons {
+            text-align: center;
+            margin: 20px 0;
+        }
+
+        .nav-btn {
+            background: rgba(255,255,255,0.2);
+            color: white;
+            border: 2px solid white;
+            padding: 12px 24px;
+            border-radius: 25px;
+            text-decoration: none;
+            margin: 0 10px;
+            transition: all 0.3s ease;
+            display: inline-block;
+        }
+
+        .nav-btn:hover {
+            background: white;
+            color: #667eea;
+        }
+
+        .main-tabs {
+            display: flex;
+            background: #f8f9fa;
+            border-bottom: 1px solid #dee2e6;
+        }
+
+        .main-tab {
+            flex: 1;
+            padding: 20px;
+            text-align: center;
+            cursor: pointer;
+            border: none;
+            background: none;
+            font-size: 18px;
+            font-weight: 500;
+            color: #6c757d;
+            transition: all 0.3s ease;
+        }
+
+        .main-tab.active {
+            background: white;
+            color: #667eea;
+            border-bottom: 3px solid #667eea;
+        }
+
+        .main-tab:hover {
+            background: #e9ecef;
+        }
+
+        .tab-content {
+            display: none;
+            padding: 40px;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .upload-area {
+            border: 3px dashed #667eea;
+            border-radius: 15px;
+            padding: 40px;
+            text-align: center;
+            margin-bottom: 30px;
+            transition: all 0.3s ease;
+            background: #f8f9ff;
+        }
+
+        .upload-area:hover {
+            border-color: #5a6fd8;
+            background: #f0f2ff;
+        }
+
+        .upload-area.dragover {
+            border-color: #28a745;
+            background: #f8fff8;
+        }
+
+        .upload-icon {
+            font-size: 3em;
+            color: #667eea;
+            margin-bottom: 20px;
+        }
+
+        .upload-text {
+            font-size: 1.2em;
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .upload-hint {
+            color: #666;
+            font-size: 0.9em;
+        }
+
+        .file-input {
+            display: none;
+        }
+
+        .location-section {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 30px;
+        }
+
+        .location-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .location-icon {
+            font-size: 1.5em;
+            color: #667eea;
+            margin-right: 10px;
+        }
+
+        .location-title {
+            font-size: 1.2em;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .location-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .location-field {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .location-field.full-width {
+            grid-column: 1 / -1;
+        }
+
+        .location-label {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 8px;
+        }
+
+        .location-input {
+            padding: 12px 15px;
+            border: 2px solid #dee2e6;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s ease;
+        }
+
+        .location-input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .location-buttons {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #5a6fd8;
+        }
+
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #218838;
+        }
+
+        .btn-warning {
+            background: #ffc107;
+            color: #212529;
+        }
+
+        .btn-warning:hover {
+            background: #e0a800;
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .upload-btn {
+            background: #667eea;
+            color: white;
+            padding: 15px 30px;
+            border: none;
+            border-radius: 25px;
+            font-size: 1.1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            width: 100%;
+            margin-top: 20px;
+        }
+
+        .upload-btn:hover {
+            background: #5a6fd8;
+            transform: translateY(-2px);
+        }
+
+        .upload-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .progress-section {
+            margin-top: 30px;
+            display: none;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background: #e9ecef;
+            border-radius: 10px;
+            overflow: hidden;
+            margin-bottom: 10px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .progress-text {
+            text-align: center;
+            color: #666;
+            font-size: 0.9em;
+        }
+
+        .result-section {
+            margin-top: 30px;
+            padding: 25px;
+            background: #f8f9fa;
+            border-radius: 15px;
+            display: none;
+        }
+
+        .result-header {
+            font-size: 1.3em;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .result-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .result-card {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+
+        .result-number {
+            font-size: 2em;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .result-label {
+            color: #666;
+            margin-top: 5px;
+        }
+
+        .faces-section {
+            margin-top: 20px;
+        }
+
+        .faces-title {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+
+        .faces-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+            gap: 15px;
+        }
+
+        .face-card {
+            background: white;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            transition: transform 0.3s ease;
+        }
+
+        .face-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .face-image {
+            width: 100%;
+            height: 120px;
+            object-fit: cover;
+        }
+
+        .face-label {
+            padding: 10px;
+            text-align: center;
+            font-size: 0.9em;
+            color: #666;
+        }
+
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+
+        .success {
+            background: #d4edda;
+            color: #155724;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+
+        .location-status {
+            font-size: 0.9em;
+            margin-top: 10px;
+            padding: 8px 12px;
+            border-radius: 5px;
+        }
+
+        .status-success {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status-error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .status-loading {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .search-results {
+            margin-top: 30px;
+        }
+
+        .settings-section {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 30px;
+        }
+
+        .settings-header {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #e9ecef;
+        }
+
+        .settings-icon {
+            font-size: 2em;
+        }
+
+        .settings-title {
+            font-size: 1.8em;
+            font-weight: 700;
+            color: #2d3748;
+        }
+
+        .settings-item {
+            background: white;
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+            border-left: 4px solid #667eea;
+        }
+
+        .settings-label {
+            font-size: 1.2em;
+            font-weight: 600;
+            color: #2d3748;
+            margin-bottom: 8px;
+        }
+
+        .settings-description {
+            color: #718096;
+            margin-bottom: 20px;
+            line-height: 1.5;
+        }
+
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #c82333;
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #5a6268;
+        }
+
+        .btn-info {
+            background: #17a2b8;
+            color: white;
+        }
+
+        .btn-info:hover {
+            background: #138496;
+        }
+
+        .search-result-item {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 15px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            border-left: 4px solid #667eea;
+        }
+
+        .search-result-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .search-result-title {
+            font-weight: 600;
+            color: #333;
+            font-size: 1.1em;
+        }
+
+        .search-result-date {
+            color: #666;
+            font-size: 0.9em;
+        }
+
+        .search-result-location {
+            background: #e3f2fd;
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 15px;
+            border-left: 4px solid #2196f3;
+        }
+
+        .search-result-location-title {
+            font-weight: 600;
+            color: #1976d2;
+            margin-bottom: 5px;
+            display: flex;
+            align-items: center;
+        }
+
+        .search-result-location-details {
+            color: #424242;
+            font-size: 0.9em;
+        }
+
+        .search-result-faces {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+            gap: 10px;
+        }
+
+        .search-result-face {
+            width: 100%;
+            height: 80px;
+            object-fit: cover;
+            border-radius: 8px;
+            border: 2px solid #dee2e6;
+        }
+
+        .no-results {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+
+        .no-results-icon {
+            font-size: 3em;
+            margin-bottom: 15px;
+            opacity: 0.5;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                margin: 10px;
+            }
+            
+            .header h1 {
+                font-size: 2em;
+            }
+            
+            .location-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .location-buttons {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .main-tabs {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎬 Video Face Detection</h1>
+            <p>Upload videos to detect faces and search for people in your history</p>
+        </div>
+
+        <div class="nav-buttons">
+            <a href="/" class="nav-btn">🏠 Home</a>
+            <a href="/storage" class="nav-btn">📁 Storage & History</a>
+        </div>
+
+        <div class="main-tabs">
+            <button class="main-tab active" onclick="showMainTab('upload')">📹 Upload Video</button>
+            <button class="main-tab" onclick="showMainTab('search')">🔍 Find by Face</button>
+            <button class="main-tab" onclick="showMainTab('settings')">⚙️ Settings</button>
+        </div>
+
+        <!-- Upload Video Tab -->
+        <div id="uploadTab" class="tab-content active">
+            <div class="upload-area" id="uploadArea">
+                <div class="upload-icon">📹</div>
+                <div class="upload-text">Drop your video here or click to browse</div>
+                <div class="upload-hint">Supported formats: MP4, AVI, MOV, MKV</div>
+                <input type="file" id="videoFile" class="file-input" accept="video/*">
+            </div>
+
+            <div class="location-section">
+                <div class="location-header">
+                    <div class="location-icon">📍</div>
+                    <div class="location-title">Location Information</div>
+                </div>
+                
+                <div class="location-grid">
+                    <div class="location-field full-width">
+                        <label class="location-label">Location Name</label>
+                        <input type="text" id="locationName" class="location-input" placeholder="Enter location name (e.g., Central Park, Times Square)">
+                    </div>
+                    
+                    <div class="location-field">
+                        <label class="location-label">Latitude</label>
+                        <input type="number" id="latitude" class="location-input" placeholder="Latitude" step="any">
+                    </div>
+                    
+                    <div class="location-field">
+                        <label class="location-label">Longitude</label>
+                        <input type="number" id="longitude" class="location-input" placeholder="Longitude" step="any">
+                    </div>
+                </div>
+                
+                <div class="location-buttons">
+                    <button class="btn btn-success" onclick="getCurrentLocation()">
+                        📍 Get Current Location
+                    </button>
+                    <button class="btn btn-warning" onclick="clearLocation()">
+                        🗑️ Clear Location
+                    </button>
+                </div>
+                
+                <div id="locationStatus" class="location-status" style="display: none;"></div>
+            </div>
+
+            <button class="upload-btn" id="uploadBtn" onclick="uploadVideo()" disabled>
+                🚀 Upload & Process Video
+            </button>
+
+            <div class="error" id="error"></div>
+            <div class="success" id="success"></div>
+
+            <div class="progress-section" id="progressSection">
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressFill"></div>
+                </div>
+                <div class="progress-text" id="progressText">Processing...</div>
+            </div>
+
+            <div class="result-section" id="resultSection">
+                <div class="result-header">🎉 Processing Complete!</div>
+                
+                <div class="result-grid">
+                    <div class="result-card">
+                        <div class="result-number" id="uniqueFacesCount">0</div>
+                        <div class="result-label">Unique Faces</div>
+                    </div>
+                    <div class="result-card">
+                        <div class="result-number" id="processingTime">0s</div>
+                        <div class="result-label">Processing Time</div>
+                    </div>
+                    <div class="result-card">
+                        <div class="result-number" id="locationInfo">-</div>
+                        <div class="result-label">Location</div>
+                    </div>
+                </div>
+
+                <div class="faces-section" id="facesSection">
+                    <div class="faces-title">Detected Faces</div>
+                    <div class="faces-grid" id="facesGrid"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Find by Face Tab -->
+        <div id="searchTab" class="tab-content">
+            <div class="upload-area" id="searchUploadArea">
+                <div class="upload-icon">👤</div>
+                <div class="upload-text">Upload a photo of the person you want to find</div>
+                <div class="upload-hint">Supported formats: JPG, PNG, JPEG</div>
+                <input type="file" id="searchImageFile" class="file-input" accept="image/*">
+            </div>
+
+            <button class="upload-btn" id="searchBtn" onclick="searchByFace()" disabled>
+                🔍 Search for Person
+            </button>
+
+            <div class="error" id="searchError"></div>
+            <div class="success" id="searchSuccess"></div>
+
+            <div class="progress-section" id="searchProgressSection">
+                <div class="progress-bar">
+                    <div class="progress-fill" id="searchProgressFill"></div>
+                </div>
+                <div class="progress-text" id="searchProgressText">Searching...</div>
+            </div>
+
+            <div class="search-results" id="searchResults"></div>
+        </div>
+
+        <!-- Settings Tab -->
+        <div id="settingsTab" class="tab-content">
+            <div class="settings-section">
+                <div class="settings-header">
+                    <div class="settings-icon">⚙️</div>
+                    <div class="settings-title">System Settings</div>
+                </div>
+                
+                <div class="settings-item">
+                    <div class="settings-label">Database Management</div>
+                    <div class="settings-description">Reset the entire database and remove all videos and faces. This action cannot be undone.</div>
+                    <button class="btn btn-danger" onclick="resetDatabase()">
+                        🗑️ Reset Database
+                    </button>
+                </div>
+                
+                <div class="settings-item">
+                    <div class="settings-label">Search History</div>
+                    <div class="settings-description">View your recent search history and statistics</div>
+                    <button class="btn btn-secondary" onclick="viewSearchHistory()">
+                        📊 View Search History
+                    </button>
+                </div>
+                
+                <div class="settings-item">
+                    <div class="settings-label">System Information</div>
+                    <div class="settings-description">View system statistics and performance metrics</div>
+                    <button class="btn btn-info" onclick="viewSystemInfo()">
+                        📈 System Info
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let selectedFile = null;
+        let selectedSearchImage = null;
+        let locationData = {
+            name: '',
+            latitude: null,
+            longitude: null
+        };
+
+        // Tab switching
+        function showMainTab(tab) {
+            // Update active tab
+            document.querySelectorAll('.main-tab').forEach(tabEl => {
+                tabEl.classList.remove('active');
+            });
+            event.target.classList.add('active');
+
+            // Show/hide tab content
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+
+            if (tab === 'upload') {
+                document.getElementById('uploadTab').classList.add('active');
+            } else if (tab === 'search') {
+                document.getElementById('searchTab').classList.add('active');
+            } else if (tab === 'settings') {
+                document.getElementById('settingsTab').classList.add('active');
+            }
+        }
+
+        // File upload handling for video
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('videoFile');
+        const uploadBtn = document.getElementById('uploadBtn');
+
+        uploadArea.addEventListener('click', () => fileInput.click());
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                handleVideoFileSelect(files[0]);
+            }
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                handleVideoFileSelect(e.target.files[0]);
+            }
+        });
+
+        function handleVideoFileSelect(file) {
+            if (!file.type.startsWith('video/')) {
+                showError('Please select a valid video file');
+                return;
+            }
+
+            selectedFile = file;
+            uploadArea.innerHTML = `
+                <div class="upload-icon">✅</div>
+                <div class="upload-text">${file.name}</div>
+                <div class="upload-hint">File size: ${(file.size / (1024 * 1024)).toFixed(2)} MB</div>
+            `;
+            
+            uploadBtn.disabled = false;
+            hideError();
+        }
+
+        // File upload handling for search image
+        const searchUploadArea = document.getElementById('searchUploadArea');
+        const searchImageFile = document.getElementById('searchImageFile');
+        const searchBtn = document.getElementById('searchBtn');
+
+        searchUploadArea.addEventListener('click', () => searchImageFile.click());
+        searchUploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            searchUploadArea.classList.add('dragover');
+        });
+        searchUploadArea.addEventListener('dragleave', () => {
+            searchUploadArea.classList.remove('dragover');
+        });
+        searchUploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            searchUploadArea.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                handleSearchImageSelect(files[0]);
+            }
+        });
+
+        searchImageFile.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                handleSearchImageSelect(e.target.files[0]);
+            }
+        });
+
+        function handleSearchImageSelect(file) {
+            if (!file.type.startsWith('image/')) {
+                showSearchError('Please select a valid image file');
+                return;
+            }
+
+            selectedSearchImage = file;
+            searchUploadArea.innerHTML = `
+                <div class="upload-icon">✅</div>
+                <div class="upload-text">${file.name}</div>
+                <div class="upload-hint">File size: ${(file.size / (1024 * 1024)).toFixed(2)} MB</div>
+            `;
+            
+            searchBtn.disabled = false;
+            hideSearchError();
+        }
+
+        // Location handling
+        function getCurrentLocation() {
+            const statusDiv = document.getElementById('locationStatus');
+            statusDiv.textContent = '📍 Getting your location...';
+            statusDiv.className = 'location-status status-loading';
+            statusDiv.style.display = 'block';
+
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    (position) => {
+                        const { latitude, longitude } = position.coords;
+                        
+                        document.getElementById('latitude').value = latitude;
+                        document.getElementById('longitude').value = longitude;
+                        
+                        // Try to get location name using reverse geocoding
+                        getLocationName(latitude, longitude);
+                        
+                        statusDiv.textContent = '✅ Location captured successfully!';
+                        statusDiv.className = 'location-status status-success';
+                        
+                        locationData.latitude = latitude;
+                        locationData.longitude = longitude;
+                    },
+                    (error) => {
+                        let errorMessage = 'Failed to get location';
+                        switch(error.code) {
+                            case error.PERMISSION_DENIED:
+                                errorMessage = 'Location permission denied';
+                                break;
+                            case error.POSITION_UNAVAILABLE:
+                                errorMessage = 'Location information unavailable';
+                                break;
+                            case error.TIMEOUT:
+                                errorMessage = 'Location request timed out';
+                                break;
+                        }
+                        
+                        statusDiv.textContent = `❌ ${errorMessage}`;
+                        statusDiv.className = 'location-status status-error';
+                    }
+                );
+            } else {
+                statusDiv.textContent = '❌ Geolocation not supported';
+                statusDiv.className = 'location-status status-error';
+            }
+        }
+
+        function getLocationName(latitude, longitude) {
+            // Using OpenStreetMap Nominatim for reverse geocoding
+            fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=10`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.display_name) {
+                        const locationName = data.display_name.split(', ').slice(0, 3).join(', ');
+                        document.getElementById('locationName').value = locationName;
+                        locationData.name = locationName;
+                    }
+                })
+                .catch(error => {
+                    console.log('Could not get location name:', error);
+                });
+        }
+
+        function clearLocation() {
+            document.getElementById('locationName').value = '';
+            document.getElementById('latitude').value = '';
+            document.getElementById('longitude').value = '';
+            document.getElementById('locationStatus').style.display = 'none';
+            
+            locationData = {
+                name: '',
+                latitude: null,
+                longitude: null
+            };
+        }
+
+        // Update location data when inputs change
+        document.getElementById('locationName').addEventListener('input', (e) => {
+            locationData.name = e.target.value;
+        });
+        
+        document.getElementById('latitude').addEventListener('input', (e) => {
+            locationData.latitude = e.target.value ? parseFloat(e.target.value) : null;
+        });
+        
+        document.getElementById('longitude').addEventListener('input', (e) => {
+            locationData.longitude = e.target.value ? parseFloat(e.target.value) : null;
+        });
+
+        // Upload functionality
+        function uploadVideo() {
+            if (!selectedFile) {
+                showError('Please select a video file');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('video', selectedFile);
+            
+            // Add location data
+            if (locationData.name) {
+                formData.append('location_name', locationData.name);
+            }
+            if (locationData.latitude !== null) {
+                formData.append('latitude', locationData.latitude);
+            }
+            if (locationData.longitude !== null) {
+                formData.append('longitude', locationData.longitude);
+            }
+
+            // Show progress
+            document.getElementById('progressSection').style.display = 'block';
+            document.getElementById('resultSection').style.display = 'none';
+            uploadBtn.disabled = true;
+            hideError();
+            hideSuccess();
+
+            // Simulate progress
+            let progress = 0;
+            const progressInterval = setInterval(() => {
+                progress += Math.random() * 15;
+                if (progress > 90) progress = 90;
+                updateProgress(progress);
+            }, 500);
+
+            fetch('/api/upload-video', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                clearInterval(progressInterval);
+                updateProgress(100);
+                
+                if (data.error) {
+                    showError(data.error);
+                } else {
+                    showSuccess('Video processed successfully!');
+                    displayResults(data);
+                }
+            })
+            .catch(error => {
+                clearInterval(progressInterval);
+                showError('Upload failed: ' + error.message);
+            })
+            .finally(() => {
+                uploadBtn.disabled = false;
+            });
+        }
+
+        // Search by face functionality
+        function searchByFace() {
+            if (!selectedSearchImage) {
+                showSearchError('Please select an image file');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('search_image', selectedSearchImage);
+
+            // Show progress
+            document.getElementById('searchProgressSection').style.display = 'block';
+            document.getElementById('searchResults').innerHTML = '';
+            searchBtn.disabled = true;
+            hideSearchError();
+            hideSearchSuccess();
+
+            // Simulate progress
+            let progress = 0;
+            const progressInterval = setInterval(() => {
+                progress += Math.random() * 20;
+                if (progress > 90) progress = 90;
+                updateSearchProgress(progress);
+            }, 300);
+
+            fetch('/api/search-by-face', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                clearInterval(progressInterval);
+                updateSearchProgress(100);
+                
+                console.log('Search response:', data); // Debug log
+                
+                if (data.error) {
+                    showSearchError(data.error);
+                } else if (data.matches && Array.isArray(data.matches)) {
+                    showSearchSuccess(`Found ${data.matches.length} matches!`);
+                    displaySearchResults(data);
+                } else {
+                    showSearchError('Invalid response format from server');
+                }
+            })
+            .catch(error => {
+                clearInterval(progressInterval);
+                showSearchError('Search failed: ' + error.message);
+            })
+            .finally(() => {
+                searchBtn.disabled = false;
+            });
+        }
+
+        function updateProgress(percent) {
+            document.getElementById('progressFill').style.width = percent + '%';
+            document.getElementById('progressText').textContent = `Processing... ${Math.round(percent)}%`;
+        }
+
+        function updateSearchProgress(percent) {
+            document.getElementById('searchProgressFill').style.width = percent + '%';
+            document.getElementById('searchProgressText').textContent = `Searching... ${Math.round(percent)}%`;
+        }
+
+        function displayResults(data) {
+            document.getElementById('uniqueFacesCount').textContent = data.unique_faces_count || 0;
+            document.getElementById('processingTime').textContent = (data.processing_time_seconds || 0).toFixed(2) + 's';
+            
+            // Display location info
+            const locationInfo = locationData.name || 'Not specified';
+            document.getElementById('locationInfo').textContent = locationInfo;
+
+            if (data.faces && data.faces.length > 0) {
+                document.getElementById('facesSection').style.display = 'block';
+                const facesGrid = document.getElementById('facesGrid');
+                facesGrid.innerHTML = data.faces.map((face, index) => `
+                    <div class="face-card">
+                        <img src="/${face}" alt="Face ${index + 1}" class="face-image" 
+                             onerror="this.style.display='none'">
+                        <div class="face-label">Face ${index + 1}</div>
+                    </div>
+                `).join('');
+            } else {
+                document.getElementById('facesSection').style.display = 'none';
+            }
+
+            document.getElementById('resultSection').style.display = 'block';
+        }
+
+        function displaySearchResults(data) {
+            const resultsContainer = document.getElementById('searchResults');
+            
+            if (data.matches && data.matches.length > 0) {
+                resultsContainer.innerHTML = data.matches.map(match => `
+                    <div class="search-result-item">
+                        <div class="search-result-header">
+                            <div class="search-result-title">${match.video.original_filename}</div>
+                            <div class="search-result-date">${new Date(match.video.upload_time).toLocaleString()}</div>
+                        </div>
+                        
+                        ${match.video.location_name || match.video.latitude || match.video.longitude ? `
+                            <div class="search-result-location">
+                                <div class="search-result-location-title">
+                                    <span>📍</span> Location Information
+                                </div>
+                                <div class="search-result-location-details">
+                                    ${match.video.location_name ? `<strong>Name:</strong> ${match.video.location_name}<br>` : ''}
+                                    ${match.video.latitude && match.video.longitude ? 
+                                        `<strong>Coordinates:</strong> ${match.video.latitude.toFixed(6)}, ${match.video.longitude.toFixed(6)}<br>
+                                         <a href="https://www.openstreetmap.org/?mlat=${match.video.latitude}&mlon=${match.video.longitude}&zoom=15" 
+                                            target="_blank" style="color: #2196f3; text-decoration: none;">🗺️ View on Map</a>` : 
+                                        (match.video.latitude || match.video.longitude ? 
+                                            `<strong>Partial Coordinates:</strong> ${match.video.latitude || 'N/A'}, ${match.video.longitude || 'N/A'}` : 
+                                            'No GPS coordinates'
+                                        )
+                                    }
+                                </div>
+                            </div>
+                        ` : ''}
+                        
+                        <div class="search-result-actions">
+                            <button class="btn btn-primary" onclick="previewVideo('${match.video.id}')">
+                                🎬 Preview Video
+                            </button>
+                            <button class="btn btn-secondary" onclick="viewVideoDetails('${match.video.id}')">
+                                📋 Video Details
+                            </button>
+                        </div>
+                        
+                        <div class="search-result-faces">
+                            <div class="faces-title">Matched Faces (${match.matched_faces.length})</div>
+                            ${match.matched_faces.map(face => `
+                                <img src="/${face}" alt="Matched Face" class="search-result-face" 
+                                     onerror="this.style.display='none'">
+                            `).join('')}
+                        </div>
+                    </div>
+                `).join('');
+            } else {
+                resultsContainer.innerHTML = `
+                    <div class="no-results">
+                        <div class="no-results-icon">🔍</div>
+                        <h3>No matches found</h3>
+                        <p>The person you're looking for wasn't found in any of the processed videos.</p>
+                    </div>
+                `;
+            }
+        }
+
+        function showError(message) {
+            const errorDiv = document.getElementById('error');
+            errorDiv.textContent = message;
+            errorDiv.style.display = 'block';
+        }
+
+        function hideError() {
+            document.getElementById('error').style.display = 'none';
+        }
+
+        function showSuccess(message) {
+            const successDiv = document.getElementById('success');
+            successDiv.textContent = message;
+            successDiv.style.display = 'block';
+        }
+
+        function hideSuccess() {
+            document.getElementById('success').style.display = 'none';
+        }
+
+        function showSearchError(message) {
+            const errorDiv = document.getElementById('searchError');
+            errorDiv.textContent = message;
+            errorDiv.style.display = 'block';
+        }
+
+        function hideSearchError() {
+            document.getElementById('searchError').style.display = 'none';
+        }
+
+        function showSearchSuccess(message) {
+            const successDiv = document.getElementById('searchSuccess');
+            successDiv.textContent = message;
+            successDiv.style.display = 'block';
+        }
+
+        function hideSearchSuccess() {
+            document.getElementById('searchSuccess').style.display = 'none';
+        }
+
+        // Settings functions
+        function resetDatabase() {
+            if (!confirm('⚠️ WARNING: This will permanently delete ALL videos and faces from the database. This action cannot be undone. Are you sure you want to continue?')) {
+                return;
+            }
+
+            if (!confirm('Are you absolutely sure? This will remove everything and start fresh.')) {
+                return;
+            }
+
+            fetch('/api/videos/reset-database?confirm=true', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    alert('Error: ' + data.error);
+                } else {
+                    alert('✅ Database reset successfully! All videos and faces have been removed.');
+                    // Refresh the page to show empty state
+                    location.reload();
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error resetting database: ' + error.message);
+            });
+        }
+
+        function viewSearchHistory() {
+            fetch('/api/search-history')
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    alert('Error: ' + data.error);
+                    return;
+                }
+                
+                let historyHtml = '<div class="search-history-modal">';
+                historyHtml += '<div class="modal-header"><h3>Search History</h3></div>';
+                historyHtml += '<div class="modal-content">';
+                
+                if (data.searches && data.searches.length > 0) {
+                    data.searches.forEach(search => {
+                        const searchDate = new Date(search.search_time).toLocaleString();
+                        historyHtml += `
+                            <div class="history-item">
+                                <div class="history-date">${searchDate}</div>
+                                <div class="history-stats">
+                                    <span>📊 ${search.matches_found} matches found</span>
+                                    <span>📹 ${search.total_videos} videos searched</span>
+                                    <span>⏱️ ${search.processing_time.toFixed(2)}s</span>
+                                </div>
+                            </div>
+                        `;
+                    });
+                } else {
+                    historyHtml += '<div class="no-history">No search history found.</div>';
+                }
+                
+                historyHtml += '</div></div>';
+                
+                // Create modal
+                const modal = document.createElement('div');
+                modal.className = 'modal';
+                modal.innerHTML = historyHtml;
+                document.body.appendChild(modal);
+                
+                // Close modal on click
+                modal.addEventListener('click', () => {
+                    document.body.removeChild(modal);
+                });
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error loading search history: ' + error.message);
+            });
+        }
+
+        function viewSystemInfo() {
+            fetch('/api/videos/stats')
+            .then(response => response.json())
+            .then(data => {
+                let infoHtml = '<div class="system-info-modal">';
+                infoHtml += '<div class="modal-header"><h3>System Information</h3></div>';
+                infoHtml += '<div class="modal-content">';
+                infoHtml += `
+                    <div class="info-item">
+                        <span class="info-label">Total Videos:</span>
+                        <span class="info-value">${data.total_records || 0}</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Active Videos:</span>
+                        <span class="info-value">${data.active_records || 0}</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Archived Videos:</span>
+                        <span class="info-value">${data.archived_records || 0}</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Total Faces Detected:</span>
+                        <span class="info-value">${data.total_faces_detected || 0}</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Videos with GPS:</span>
+                        <span class="info-value">${data.locations_with_gps || 0}</span>
+                    </div>
+                `;
+                infoHtml += '</div></div>';
+                
+                // Create modal
+                const modal = document.createElement('div');
+                modal.className = 'modal';
+                modal.innerHTML = infoHtml;
+                document.body.appendChild(modal);
+                
+                // Close modal on click
+                modal.addEventListener('click', () => {
+                    document.body.removeChild(modal);
+                });
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error loading system info: ' + error.message);
+            });
+        }
+
+        function previewVideo(videoId) {
+            fetch(`/api/videos/${videoId}/preview`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    alert('Error: ' + data.error);
+                    return;
+                }
+                
+                const video = data.video;
+                let previewHtml = '<div class="video-preview-modal">';
+                previewHtml += '<div class="modal-header"><h3>Video Preview</h3></div>';
+                previewHtml += '<div class="modal-content">';
+                previewHtml += `
+                    <div class="video-info">
+                        <div class="video-title">${video.original_filename}</div>
+                        <div class="video-details">
+                            <span>📅 Uploaded: ${new Date(video.upload_time).toLocaleString()}</span>
+                            <span>👥 Unique Faces: ${video.unique_faces}</span>
+                            <span>⏱️ Processing Time: ${video.processing_time.toFixed(2)}s</span>
+                        </div>
+                        ${video.location_name ? `<div class="video-location">📍 ${video.location_name}</div>` : ''}
+                    </div>
+                    <div class="video-player">
+                        <video controls width="100%" style="max-height: 400px;">
+                            <source src="/api/videos/${videoId}/file" type="video/mp4">
+                            Your browser does not support the video tag.
+                        </video>
+                    </div>
+                `;
+                previewHtml += '</div></div>';
+                
+                // Create modal
+                const modal = document.createElement('div');
+                modal.className = 'modal';
+                modal.innerHTML = previewHtml;
+                document.body.appendChild(modal);
+                
+                // Close modal on click
+                modal.addEventListener('click', () => {
+                    document.body.removeChild(modal);
+                });
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error loading video preview: ' + error.message);
+            });
+        }
+
+        function viewVideoDetails(videoId) {
+            fetch(`/api/videos/${videoId}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    alert('Error: ' + data.error);
+                    return;
+                }
+                
+                const video = data.video;
+                let detailsHtml = '<div class="video-details-modal">';
+                detailsHtml += '<div class="modal-header"><h3>Video Details</h3></div>';
+                detailsHtml += '<div class="modal-content">';
+                detailsHtml += `
+                    <div class="detail-item">
+                        <span class="detail-label">File Name:</span>
+                        <span class="detail-value">${video.original_filename}</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">Upload Time:</span>
+                        <span class="detail-value">${new Date(video.upload_time).toLocaleString()}</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">Status:</span>
+                        <span class="detail-value">${video.status}</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">Unique Faces:</span>
+                        <span class="detail-value">${video.unique_faces_count}</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">Processing Time:</span>
+                        <span class="detail-value">${video.processing_time.toFixed(2)}s</span>
+                    </div>
+                    ${video.location_name ? `
+                        <div class="detail-item">
+                            <span class="detail-label">Location:</span>
+                            <span class="detail-value">${video.location_name}</span>
+                        </div>
+                    ` : ''}
+                    ${video.latitude && video.longitude ? `
+                        <div class="detail-item">
+                            <span class="detail-label">Coordinates:</span>
+                            <span class="detail-value">${video.latitude.toFixed(6)}, ${video.longitude.toFixed(6)}</span>
+                        </div>
+                    ` : ''}
+                `;
+                detailsHtml += '</div></div>';
+                
+                // Create modal
+                const modal = document.createElement('div');
+                modal.className = 'modal';
+                modal.innerHTML = detailsHtml;
+                document.body.appendChild(modal);
+                
+                // Close modal on click
+                modal.addEventListener('click', () => {
+                    document.body.removeChild(modal);
+                });
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error loading video details: ' + error.message);
+            });
+        }
+    </script>
+
+    <style>
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .search-history-modal,
+        .system-info-modal {
+            background: white;
+            border-radius: 15px;
+            max-width: 600px;
+            width: 90%;
+            max-height: 80%;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            padding: 20px;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .modal-header h3 {
+            margin: 0;
+            color: #2d3748;
+        }
+
+        .modal-content {
+            padding: 20px;
+        }
+
+        .history-item {
+            padding: 15px;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .history-date {
+            font-weight: 600;
+            color: #2d3748;
+            margin-bottom: 5px;
+        }
+
+        .history-stats {
+            display: flex;
+            gap: 15px;
+            color: #718096;
+            font-size: 0.9em;
+        }
+
+        .no-history {
+            text-align: center;
+            color: #718096;
+            padding: 20px;
+        }
+
+        .info-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .info-label {
+            font-weight: 600;
+            color: #2d3748;
+        }
+
+        .info-value {
+            color: #667eea;
+            font-weight: 600;
+        }
+
+        .search-result-actions {
+            display: flex;
+            gap: 10px;
+            margin: 15px 0;
+        }
+
+        .faces-title {
+            font-weight: 600;
+            color: #2d3748;
+            margin-bottom: 10px;
+            font-size: 1.1em;
+        }
+
+        .video-preview-modal,
+        .video-details-modal {
+            background: white;
+            border-radius: 15px;
+            max-width: 800px;
+            width: 90%;
+            max-height: 90%;
+            overflow-y: auto;
+        }
+
+        .video-info {
+            margin-bottom: 20px;
+        }
+
+        .video-title {
+            font-size: 1.3em;
+            font-weight: 600;
+            color: #2d3748;
+            margin-bottom: 10px;
+        }
+
+        .video-details {
+            display: flex;
+            gap: 20px;
+            color: #718096;
+            font-size: 0.9em;
+            margin-bottom: 10px;
+        }
+
+        .video-location {
+            color: #667eea;
+            font-weight: 600;
+        }
+
+        .video-player {
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .detail-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 12px 0;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .detail-label {
+            font-weight: 600;
+            color: #2d3748;
+        }
+
+        .detail-value {
+            color: #667eea;
+            font-weight: 600;
+        }
+    </style>
+</body>
+</html> 
