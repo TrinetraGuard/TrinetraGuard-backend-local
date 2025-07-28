@@ -31,40 +31,39 @@ func NewFinderHandler(finderService *services.FinderService, log *zap.Logger) *F
 // @Accept multipart/form-data
 // @Produce json
 // @Param file formData file true "Reference image file"
-// @Param description formData string false "Description of the person"
-// @Success 200 {object} models.ReferenceImage
+// @Success 200 {object} models.UploadVideoResponse
 // @Failure 400 {object} models.ErrorResponse
 // @Failure 413 {object} models.ErrorResponse
 // @Failure 500 {object} models.ErrorResponse
-// @Router /finder/upload [post]
+// @Router /finder/images/upload [post]
 func (h *FinderHandler) UploadReferenceImage(c *gin.Context) {
 	file, err := c.FormFile("file")
 	if err != nil {
 		h.log.Error("Failed to get uploaded file", zap.Error(err))
 		c.JSON(http.StatusBadRequest, models.ErrorResponse{
-			Success:   false,
-			Error:     "invalid_file",
-			Message:   "No file provided or invalid file",
-			RequestID: c.GetString("request_id"),
+			Success: false,
+			Error:   "invalid_file",
+			Message: "No file provided or invalid file",
 		})
 		return
 	}
 
-	description := c.PostForm("description")
-
-	refImage, err := h.finderService.UploadReferenceImage(file, description)
+	image, err := h.finderService.UploadReferenceImage(file)
 	if err != nil {
 		h.log.Error("Failed to upload reference image", zap.Error(err))
 		c.JSON(http.StatusInternalServerError, models.ErrorResponse{
-			Success:   false,
-			Error:     "upload_failed",
-			Message:   err.Error(),
-			RequestID: c.GetString("request_id"),
+			Success: false,
+			Error:   "upload_failed",
+			Message: err.Error(),
 		})
 		return
 	}
 
-	c.JSON(http.StatusOK, refImage)
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "Reference image uploaded successfully",
+		"image":   image,
+	})
 }
 
 // ListReferenceImages godoc
@@ -72,7 +71,7 @@ func (h *FinderHandler) UploadReferenceImage(c *gin.Context) {
 // @Description Get a list of all uploaded reference images
 // @Tags finder
 // @Produce json
-// @Success 200 {array} models.ReferenceImage
+// @Success 200 {object} map[string]interface{}
 // @Failure 500 {object} models.ErrorResponse
 // @Router /finder/images [get]
 func (h *FinderHandler) ListReferenceImages(c *gin.Context) {
@@ -80,23 +79,61 @@ func (h *FinderHandler) ListReferenceImages(c *gin.Context) {
 	if err != nil {
 		h.log.Error("Failed to list reference images", zap.Error(err))
 		c.JSON(http.StatusInternalServerError, models.ErrorResponse{
-			Success:   false,
-			Error:     "list_failed",
-			Message:   "Failed to retrieve reference images",
-			RequestID: c.GetString("request_id"),
+			Success: false,
+			Error:   "list_failed",
+			Message: err.Error(),
 		})
 		return
 	}
 
-	if images == nil {
-		images = []models.ReferenceImage{}
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"images":  images,
+	})
+}
+
+// DeleteReferenceImage godoc
+// @Summary Delete a reference image
+// @Description Delete a reference image by ID
+// @Tags finder
+// @Produce json
+// @Param id path string true "Image ID"
+// @Success 200 {object} map[string]interface{}
+// @Failure 404 {object} models.ErrorResponse
+// @Failure 500 {object} models.ErrorResponse
+// @Router /finder/images/{id} [delete]
+func (h *FinderHandler) DeleteReferenceImage(c *gin.Context) {
+	imageID := c.Param("id")
+	if imageID == "" {
+		h.log.Error("Missing image ID parameter")
+		c.JSON(http.StatusBadRequest, models.ErrorResponse{
+			Success: false,
+			Error:   "missing_image_id",
+			Message: "Image ID is required",
+		})
+		return
 	}
-	c.JSON(http.StatusOK, images)
+
+	err := h.finderService.DeleteReferenceImage(imageID)
+	if err != nil {
+		h.log.Error("Failed to delete reference image", zap.String("image_id", imageID), zap.Error(err))
+		c.JSON(http.StatusInternalServerError, models.ErrorResponse{
+			Success: false,
+			Error:   "delete_failed",
+			Message: err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "Reference image deleted successfully",
+	})
 }
 
 // SearchPerson godoc
 // @Summary Search for a person
-// @Description Search for a person in videos using a reference image
+// @Description Start a search job to find a person in videos using a reference image
 // @Tags finder
 // @Accept json
 // @Produce json
@@ -109,89 +146,70 @@ func (h *FinderHandler) ListReferenceImages(c *gin.Context) {
 func (h *FinderHandler) SearchPerson(c *gin.Context) {
 	var request models.SearchPersonRequest
 	if err := c.ShouldBindJSON(&request); err != nil {
+		h.log.Error("Failed to bind request body", zap.Error(err))
 		c.JSON(http.StatusBadRequest, models.ErrorResponse{
-			Success:   false,
-			Error:     "invalid_request",
-			Message:   "Invalid request body",
-			RequestID: c.GetString("request_id"),
+			Success: false,
+			Error:   "invalid_request",
+			Message: "Invalid request body",
 		})
 		return
 	}
 
-	searchJob, err := h.finderService.SearchPerson(&request)
+	job, err := h.finderService.SearchPerson(request.ReferenceImageID)
 	if err != nil {
 		h.log.Error("Failed to start person search", zap.Error(err))
-
-		if err.Error() == "reference image not found" {
-			c.JSON(http.StatusNotFound, models.ErrorResponse{
-				Success:   false,
-				Error:     "not_found",
-				Message:   "Reference image not found",
-				RequestID: c.GetString("request_id"),
-			})
-		} else {
-			c.JSON(http.StatusInternalServerError, models.ErrorResponse{
-				Success:   false,
-				Error:     "search_failed",
-				Message:   "Failed to start person search",
-				RequestID: c.GetString("request_id"),
-			})
-		}
+		c.JSON(http.StatusInternalServerError, models.ErrorResponse{
+			Success: false,
+			Error:   "search_failed",
+			Message: err.Error(),
+		})
 		return
 	}
 
 	c.JSON(http.StatusOK, models.SearchPersonResponse{
-		Success:   true,
-		Message:   "Person search started successfully",
-		SearchJob: *searchJob,
+		Success: true,
+		Message: "Person search started successfully",
+		Job:     *job,
 	})
 }
 
 // GetSearchStatus godoc
 // @Summary Get search status
-// @Description Get the current status of a person search job
+// @Description Get the status of a person search job
 // @Tags finder
 // @Produce json
-// @Param searchId path string true "Search Job ID"
-// @Success 200 {object} models.SearchJob
-// @Failure 400 {object} models.ErrorResponse
+// @Param jobId path string true "Search job ID"
+// @Success 200 {object} models.AnalysisStatusResponse
 // @Failure 404 {object} models.ErrorResponse
 // @Failure 500 {object} models.ErrorResponse
-// @Router /finder/search/{searchId}/status [get]
+// @Router /finder/search/{jobId}/status [get]
 func (h *FinderHandler) GetSearchStatus(c *gin.Context) {
-	searchID := c.Param("searchId")
-	if searchID == "" {
+	jobID := c.Param("jobId")
+	if jobID == "" {
+		h.log.Error("Missing job ID parameter")
 		c.JSON(http.StatusBadRequest, models.ErrorResponse{
-			Success:   false,
-			Error:     "invalid_search_id",
-			Message:   "Search ID is required",
-			RequestID: c.GetString("request_id"),
+			Success: false,
+			Error:   "missing_job_id",
+			Message: "Job ID is required",
 		})
 		return
 	}
 
-	searchJob, err := h.finderService.GetSearchStatus(searchID)
+	job, err := h.finderService.GetSearchStatus(jobID)
 	if err != nil {
-		h.log.Error("Failed to get search status", zap.String("search_id", searchID), zap.Error(err))
-		if err.Error() == "search job not found" {
-			c.JSON(http.StatusNotFound, models.ErrorResponse{
-				Success:   false,
-				Error:     "not_found",
-				Message:   "Search job not found",
-				RequestID: c.GetString("request_id"),
-			})
-		} else {
-			c.JSON(http.StatusInternalServerError, models.ErrorResponse{
-				Success:   false,
-				Error:     "status_failed",
-				Message:   "Failed to get search status",
-				RequestID: c.GetString("request_id"),
-			})
-		}
+		h.log.Error("Failed to get search status", zap.String("job_id", jobID), zap.Error(err))
+		c.JSON(http.StatusNotFound, models.ErrorResponse{
+			Success: false,
+			Error:   "search_job_not_found",
+			Message: err.Error(),
+		})
 		return
 	}
 
-	c.JSON(http.StatusOK, searchJob)
+	c.JSON(http.StatusOK, models.SearchStatusResponse{
+		Success: true,
+		Job:     *job,
+	})
 }
 
 // GetSearchResults godoc
@@ -199,90 +217,36 @@ func (h *FinderHandler) GetSearchStatus(c *gin.Context) {
 // @Description Get the results of a completed person search
 // @Tags finder
 // @Produce json
-// @Param searchId path string true "Search Job ID"
+// @Param jobId path string true "Search job ID"
 // @Success 200 {object} models.SearchResultsResponse
-// @Failure 400 {object} models.ErrorResponse
 // @Failure 404 {object} models.ErrorResponse
 // @Failure 500 {object} models.ErrorResponse
-// @Router /finder/search/{searchId}/results [get]
+// @Router /finder/search/{jobId}/results [get]
 func (h *FinderHandler) GetSearchResults(c *gin.Context) {
-	searchID := c.Param("searchId")
-	if searchID == "" {
+	jobID := c.Param("jobId")
+	if jobID == "" {
+		h.log.Error("Missing job ID parameter")
 		c.JSON(http.StatusBadRequest, models.ErrorResponse{
-			Success:   false,
-			Error:     "invalid_search_id",
-			Message:   "Search ID is required",
-			RequestID: c.GetString("request_id"),
+			Success: false,
+			Error:   "missing_job_id",
+			Message: "Job ID is required",
 		})
 		return
 	}
 
-	results, err := h.finderService.GetSearchResults(searchID)
+	results, err := h.finderService.GetSearchResults(jobID)
 	if err != nil {
-		h.log.Error("Failed to get search results", zap.String("search_id", searchID), zap.Error(err))
-		c.JSON(http.StatusInternalServerError, models.ErrorResponse{
-			Success:   false,
-			Error:     "results_failed",
-			Message:   "Failed to get search results",
-			RequestID: c.GetString("request_id"),
+		h.log.Error("Failed to get search results", zap.String("job_id", jobID), zap.Error(err))
+		c.JSON(http.StatusNotFound, models.ErrorResponse{
+			Success: false,
+			Error:   "search_results_not_found",
+			Message: err.Error(),
 		})
 		return
 	}
 
 	c.JSON(http.StatusOK, models.SearchResultsResponse{
 		Success: true,
-		Results: results,
-		Total:   len(results),
-	})
-}
-
-// DeleteReferenceImage godoc
-// @Summary Delete a reference image
-// @Description Delete a reference image and its associated search results
-// @Tags finder
-// @Produce json
-// @Param id path string true "Reference Image ID"
-// @Success 200 {object} models.ErrorResponse
-// @Failure 400 {object} models.ErrorResponse
-// @Failure 404 {object} models.ErrorResponse
-// @Failure 500 {object} models.ErrorResponse
-// @Router /finder/images/{id} [delete]
-func (h *FinderHandler) DeleteReferenceImage(c *gin.Context) {
-	imageID := c.Param("id")
-	if imageID == "" {
-		c.JSON(http.StatusBadRequest, models.ErrorResponse{
-			Success:   false,
-			Error:     "invalid_id",
-			Message:   "Reference image ID is required",
-			RequestID: c.GetString("request_id"),
-		})
-		return
-	}
-
-	err := h.finderService.DeleteReferenceImage(imageID)
-	if err != nil {
-		h.log.Error("Failed to delete reference image", zap.String("image_id", imageID), zap.Error(err))
-		if err.Error() == "reference image not found" {
-			c.JSON(http.StatusNotFound, models.ErrorResponse{
-				Success:   false,
-				Error:     "not_found",
-				Message:   "Reference image not found",
-				RequestID: c.GetString("request_id"),
-			})
-		} else {
-			c.JSON(http.StatusInternalServerError, models.ErrorResponse{
-				Success:   false,
-				Error:     "delete_failed",
-				Message:   "Failed to delete reference image",
-				RequestID: c.GetString("request_id"),
-			})
-		}
-		return
-	}
-
-	c.JSON(http.StatusOK, models.ErrorResponse{
-		Success:   true,
-		Message:   "Reference image deleted successfully",
-		RequestID: c.GetString("request_id"),
+		Results: *results,
 	})
 }

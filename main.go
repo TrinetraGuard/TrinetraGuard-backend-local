@@ -2,29 +2,28 @@ package main
 
 import (
 	"context"
-	"log"
+	"fmt"
 	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
 
+	"github.com/gin-gonic/gin"
+	swaggerFiles "github.com/swaggo/files"
+	ginSwagger "github.com/swaggo/gin-swagger"
+	"go.uber.org/zap"
+
 	"video-analysis-service/internal/config"
 	"video-analysis-service/internal/database"
 	"video-analysis-service/internal/handlers"
 	"video-analysis-service/internal/middleware"
 	"video-analysis-service/internal/services"
-
-	"github.com/gin-gonic/gin"
-	"github.com/joho/godotenv"
-	swaggerFiles "github.com/swaggo/files"
-	ginSwagger "github.com/swaggo/gin-swagger"
-	"go.uber.org/zap"
 )
 
 // @title Video Analysis Service API
 // @version 1.0
-// @description A comprehensive video analysis service for person detection, tracking, and face matching
+// @description A comprehensive video analysis service with face detection and person tracking
 // @termsOfService http://swagger.io/terms/
 
 // @contact.name API Support
@@ -43,11 +42,6 @@ import (
 // @description Type "Bearer" followed by a space and JWT token.
 
 func main() {
-	// Load environment variables
-	if err := godotenv.Load(); err != nil {
-		log.Println("No .env file found, using system environment variables")
-	}
-
 	// Initialize logger
 	logger, _ := zap.NewProduction()
 	defer logger.Sync()
@@ -55,13 +49,23 @@ func main() {
 	// Load configuration
 	cfg := config.Load()
 
+	logger.Info("Starting Video Analysis Service...")
+
 	// Initialize database
-	db, err := database.Initialize(cfg.Database)
+	var db *database.Database
+	var err error
+
+	if cfg.Database.Driver == "sqlite3" {
+		db, err = database.Initialize("sqlite", cfg.Database.Name)
+	} else {
+		dsn := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=%s",
+			cfg.Database.Host, cfg.Database.Port, cfg.Database.User, cfg.Database.Password, cfg.Database.Name, cfg.Database.SSLMode)
+		db, err = database.Initialize("postgres", dsn)
+	}
+
 	if err != nil {
 		logger.Fatal("Failed to initialize database", zap.Error(err))
 	}
-	// Note: Don't close the database connection here as services need it
-	// defer db.Close() - Removed to prevent premature closure
 
 	// Initialize services
 	videoService := services.NewVideoService(db.DB, cfg)
@@ -73,25 +77,20 @@ func main() {
 	analysisHandler := handlers.NewAnalysisHandler(analysisService, logger)
 	finderHandler := handlers.NewFinderHandler(finderService, logger)
 
-	// Set Gin mode
-	if cfg.Environment == "production" {
-		gin.SetMode(gin.ReleaseMode)
-	}
-
-	// Initialize router
+	// Initialize Gin router
 	router := gin.New()
 
 	// Add middleware
-	router.Use(gin.Recovery())
 	router.Use(middleware.Logger(logger))
 	router.Use(middleware.RequestID())
 	router.Use(middleware.CORS())
 	router.Use(middleware.Timeout(30 * time.Second))
+	router.Use(middleware.ErrorHandler(logger))
 
 	// API routes
 	api := router.Group("/api/v1")
 	{
-		// Video management endpoints
+		// Video management
 		videos := api.Group("/videos")
 		{
 			videos.POST("/upload", videoHandler.UploadVideo)
@@ -101,7 +100,7 @@ func main() {
 			videos.GET("/:id/download", videoHandler.DownloadVideo)
 		}
 
-		// Analysis endpoints
+		// Analysis
 		analysis := api.Group("/analysis")
 		{
 			analysis.POST("/:videoId/start", analysisHandler.StartAnalysis)
@@ -111,24 +110,23 @@ func main() {
 			analysis.POST("/batch", analysisHandler.StartBatchAnalysis)
 		}
 
-		// Finder endpoints
+		// Person finder
 		finder := api.Group("/finder")
 		{
-			finder.POST("/upload", finderHandler.UploadReferenceImage)
+			finder.POST("/images/upload", finderHandler.UploadReferenceImage)
 			finder.GET("/images", finderHandler.ListReferenceImages)
-			finder.POST("/search", finderHandler.SearchPerson)
-			finder.GET("/search/:searchId/status", finderHandler.GetSearchStatus)
-			finder.GET("/search/:searchId/results", finderHandler.GetSearchResults)
 			finder.DELETE("/images/:id", finderHandler.DeleteReferenceImage)
+			finder.POST("/search", finderHandler.SearchPerson)
+			finder.GET("/search/:jobId/status", finderHandler.GetSearchStatus)
+			finder.GET("/search/:jobId/results", finderHandler.GetSearchResults)
 		}
 
 		// Health check
 		api.GET("/health", func(c *gin.Context) {
 			c.JSON(http.StatusOK, gin.H{
-				"status":  "healthy",
-				"service": "Video Analysis Service",
-				"version": "1.0.0",
-				"time":    time.Now().UTC(),
+				"status":    "healthy",
+				"timestamp": time.Now().UTC(),
+				"service":   "video-analysis-service",
 			})
 		})
 	}
@@ -136,16 +134,16 @@ func main() {
 	// Swagger documentation
 	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
-	// Create server
-	srv := &http.Server{
-		Addr:    ":" + cfg.Server.Port,
+	// Create HTTP server
+	server := &http.Server{
+		Addr:    fmt.Sprintf(":%s", cfg.Server.Port),
 		Handler: router,
 	}
 
 	// Start server in a goroutine
 	go func() {
-		logger.Info("Starting server", zap.String("port", cfg.Server.Port))
-		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		logger.Info("Server starting", zap.String("port", cfg.Server.Port))
+		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			logger.Fatal("Failed to start server", zap.Error(err))
 		}
 	}()
@@ -154,14 +152,13 @@ func main() {
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
-
 	logger.Info("Shutting down server...")
 
-	// Create context with timeout for graceful shutdown
+	// Graceful shutdown
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	if err := srv.Shutdown(ctx); err != nil {
+	if err := server.Shutdown(ctx); err != nil {
 		logger.Fatal("Server forced to shutdown", zap.Error(err))
 	}
 

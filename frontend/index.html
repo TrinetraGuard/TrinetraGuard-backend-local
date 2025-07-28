@@ -3,623 +3,556 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Video Analysis Service - Frontend</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            line-height: 1.6;
-            color: #333;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-        }
-
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 20px;
-        }
-
-        .header {
-            text-align: center;
-            color: white;
-            margin-bottom: 30px;
-        }
-
-        .header h1 {
-            font-size: 2.5rem;
-            margin-bottom: 10px;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
-        }
-
-        .header p {
-            font-size: 1.1rem;
-            opacity: 0.9;
-        }
-
-        .tabs {
-            display: flex;
-            background: white;
-            border-radius: 10px;
-            overflow: hidden;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-            margin-bottom: 30px;
-        }
-
-        .tab-button {
-            flex: 1;
-            padding: 15px 20px;
-            background: #f8f9fa;
-            border: none;
-            cursor: pointer;
-            font-size: 1rem;
-            font-weight: 600;
-            transition: all 0.3s ease;
-        }
-
-        .tab-button.active {
-            background: #667eea;
-            color: white;
-        }
-
-        .tab-button:hover {
-            background: #5a6fd8;
-            color: white;
-        }
-
-        .tab-content {
-            display: none;
-            background: white;
-            padding: 30px;
-            border-radius: 10px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-        }
-
-        .tab-content.active {
-            display: block;
-        }
-
-        .form-group {
-            margin-bottom: 20px;
-        }
-
-        .form-group label {
-            display: block;
-            margin-bottom: 8px;
-            font-weight: 600;
-            color: #555;
-        }
-
-        .form-group input,
-        .form-group textarea,
-        .form-group select {
-            width: 100%;
-            padding: 12px;
-            border: 2px solid #e1e5e9;
-            border-radius: 8px;
-            font-size: 1rem;
-            transition: border-color 0.3s ease;
-        }
-
-        .form-group input:focus,
-        .form-group textarea:focus,
-        .form-group select:focus {
-            outline: none;
-            border-color: #667eea;
-        }
-
-        .file-input {
-            position: relative;
-            display: inline-block;
-            cursor: pointer;
-            width: 100%;
-        }
-
-        .file-input input[type=file] {
-            position: absolute;
-            opacity: 0;
-            width: 100%;
-            height: 100%;
-            cursor: pointer;
-        }
-
-        .file-input-label {
-            display: block;
-            padding: 12px;
-            border: 2px dashed #667eea;
-            border-radius: 8px;
-            text-align: center;
-            background: #f8f9ff;
-            color: #667eea;
-            font-weight: 600;
-            transition: all 0.3s ease;
-        }
-
-        .file-input:hover .file-input-label {
-            background: #667eea;
-            color: white;
-        }
-
-        .btn {
-            background: #667eea;
-            color: white;
-            padding: 12px 24px;
-            border: none;
-            border-radius: 8px;
-            cursor: pointer;
-            font-size: 1rem;
-            font-weight: 600;
-            transition: all 0.3s ease;
-            margin-right: 10px;
-            margin-bottom: 10px;
-        }
-
-        .btn:hover {
-            background: #5a6fd8;
-            transform: translateY(-2px);
-        }
-
-        .btn-secondary {
-            background: #6c757d;
-        }
-
-        .btn-secondary:hover {
-            background: #5a6268;
-        }
-
-        .btn-success {
-            background: #28a745;
-        }
-
-        .btn-success:hover {
-            background: #218838;
-        }
-
-        .btn-danger {
-            background: #dc3545;
-        }
-
-        .btn-danger:hover {
-            background: #c82333;
-        }
-
-        .data-section {
-            margin-top: 30px;
-        }
-
-        .data-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-            gap: 20px;
-            margin-top: 20px;
-        }
-
-        .data-card {
-            background: #f8f9fa;
-            border-radius: 10px;
-            padding: 20px;
-            border-left: 4px solid #667eea;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-
-        .data-card h3 {
-            color: #667eea;
-            margin-bottom: 10px;
-        }
-
-        .data-card p {
-            margin-bottom: 8px;
-            color: #666;
-        }
-
-        .data-card .status {
-            display: inline-block;
-            padding: 4px 8px;
-            border-radius: 4px;
-            font-size: 0.8rem;
-            font-weight: 600;
-        }
-
-        .status.uploaded { background: #d4edda; color: #155724; }
-        .status.analyzing { background: #fff3cd; color: #856404; }
-        .status.analyzed { background: #d1ecf1; color: #0c5460; }
-        .status.failed { background: #f8d7da; color: #721c24; }
-
-        .loading {
-            display: none;
-            text-align: center;
-            padding: 20px;
-        }
-
-        .loading.show {
-            display: block;
-        }
-
-        .spinner {
-            border: 4px solid #f3f3f3;
-            border-top: 4px solid #667eea;
-            border-radius: 50%;
-            width: 40px;
-            height: 40px;
-            animation: spin 1s linear infinite;
-            margin: 0 auto 10px;
-        }
-
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-
-        .alert {
-            padding: 12px 16px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-            font-weight: 600;
-        }
-
-        .alert-success {
-            background: #d4edda;
-            color: #155724;
-            border: 1px solid #c3e6cb;
-        }
-
-        .alert-error {
-            background: #f8d7da;
-            color: #721c24;
-            border: 1px solid #f5c6cb;
-        }
-
-        .alert-info {
-            background: #d1ecf1;
-            color: #0c5460;
-            border: 1px solid #bee5eb;
-        }
-
-        .hidden {
-            display: none;
-        }
-
-        .progress-bar {
-            width: 100%;
-            height: 20px;
-            background: #e9ecef;
-            border-radius: 10px;
-            overflow: hidden;
-            margin: 10px 0;
-        }
-
-        .progress-fill {
-            height: 100%;
-            background: #667eea;
-            transition: width 0.3s ease;
-        }
-
-        .search-results {
-            margin-top: 20px;
-        }
-
-        .match-item {
-            background: #f8f9fa;
-            border-radius: 8px;
-            padding: 15px;
-            margin-bottom: 10px;
-            border-left: 4px solid #28a745;
-        }
-
-        .match-item h4 {
-            color: #28a745;
-            margin-bottom: 8px;
-        }
-
-        .match-details {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 10px;
-            font-size: 0.9rem;
-        }
-
-        .people-section {
-            margin-top: 30px;
-        }
-
-        .people-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-            gap: 20px;
-        }
-
-        .person-card {
-            background: #f0f7ff;
-            border: 1px solid #cce5ff;
-            border-radius: 10px;
-            padding: 15px;
-            display: flex;
-            align-items: center;
-            gap: 15px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-        }
-
-        .person-face {
-            width: 80px;
-            height: 80px;
-            border-radius: 50%;
-            overflow: hidden;
-            flex-shrink: 0;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background-color: #e0e0e0;
-        }
-
-        .face-image {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
-
-        .face-placeholder {
-            font-size: 30px;
-            color: #555;
-        }
-
-        .person-info h5 {
-            margin-bottom: 5px;
-            color: #333;
-        }
-
-        .person-info p {
-            font-size: 0.9rem;
-            color: #666;
-            margin-bottom: 3px;
-        }
-
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-            gap: 15px;
-            margin-top: 15px;
-        }
-
-        .stat-item {
-            text-align: center;
-        }
-
-        .stat-number {
-            font-size: 2rem;
-            font-weight: bold;
-            color: #667eea;
-            margin-bottom: 5px;
-        }
-
-        .stat-label {
-            font-size: 0.9rem;
-            color: #555;
-        }
-
-        @media (max-width: 768px) {
-            .container {
-                padding: 10px;
-            }
-            
-            .header h1 {
-                font-size: 2rem;
-            }
-            
-            .tabs {
-                flex-direction: column;
-            }
-            
-            .data-grid {
-                grid-template-columns: 1fr;
-            }
-        }
-    </style>
+    <title>Video Analysis Service</title>
+    <link rel="stylesheet" href="styles.css">
 </head>
 <body>
     <div class="container">
-        <div class="header">
+        <header>
             <h1>🎥 Video Analysis Service</h1>
-            <p>Upload videos, analyze content, and find people across multiple videos</p>
-        </div>
+            <p>Upload videos, analyze people, and track faces</p>
+        </header>
 
-        <div class="tabs">
-            <button class="tab-button active" onclick="showTab('videos')">📹 Videos</button>
-            <button class="tab-button" onclick="showTab('analysis')">🔍 Analysis</button>
-            <button class="tab-button" onclick="showTab('finder')">👤 Person Finder</button>
-            <button class="tab-button" onclick="showTab('health')">💚 Health</button>
-        </div>
+        <nav class="tabs">
+            <button class="tab-btn active" onclick="showTab('videos')">Videos</button>
+            <button class="tab-btn" onclick="showTab('analysis')">Analysis</button>
+            <button class="tab-btn" onclick="showTab('finder')">Person Finder</button>
+            <button class="tab-btn" onclick="showTab('health')">Health</button>
+        </nav>
 
         <!-- Videos Tab -->
         <div id="videos" class="tab-content active">
-            <h2>Video Management</h2>
-            
-            <div class="form-group">
-                <label for="videoFile">Upload Video:</label>
-                <div class="file-input">
-                    <input type="file" id="videoFile" accept="video/*">
-                    <label for="videoFile" class="file-input-label">
-                        📁 Choose video file (MP4, AVI, MOV, MKV, WMV, FLV, WEBM)
-                    </label>
-                </div>
+            <div class="section">
+                <h2>Upload Video</h2>
+                <form id="uploadForm" class="upload-form">
+                    <div class="file-input-wrapper">
+                        <input type="file" id="videoFile" accept="video/*" required>
+                        <label for="videoFile" class="file-label">
+                            <span class="file-icon">📁</span>
+                            <span class="file-text">Choose video file...</span>
+                        </label>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Upload Video</button>
+                </form>
             </div>
-            
-            <button class="btn btn-success" onclick="uploadVideo()">Upload Video</button>
-            <button class="btn btn-secondary" onclick="loadVideos()">Refresh Videos</button>
-            
-            <div id="videoAlert"></div>
-            
-            <div class="data-section">
-                <h3>Uploaded Videos</h3>
-                <div id="videosList" class="data-grid"></div>
+
+            <div class="section">
+                <h2>Uploaded Videos</h2>
+                <div id="videosList" class="data-list">
+                    <div class="loading">Loading videos...</div>
+                </div>
             </div>
         </div>
 
         <!-- Analysis Tab -->
         <div id="analysis" class="tab-content">
-            <h2>Video Analysis</h2>
-            
-            <div class="form-group">
-                <label for="analysisVideoId">Select Video for Analysis:</label>
-                <select id="analysisVideoId">
-                    <option value="">Choose a video...</option>
-                </select>
+            <div class="section">
+                <h2>Video Analysis</h2>
+                <div class="analysis-controls">
+                    <select id="videoSelect" class="select-input">
+                        <option value="">Select a video...</option>
+                    </select>
+                    <button id="startAnalysisBtn" class="btn btn-primary" onclick="startAnalysis()">Start Analysis</button>
+                </div>
             </div>
-            
-            <button class="btn btn-success" onclick="startAnalysis()">Start Analysis</button>
-            <button class="btn btn-secondary" onclick="checkAnalysisStatus()">Check Status</button>
-            <button class="btn btn-secondary" onclick="getAnalysisResults()">Get Results</button>
-            
-            <div id="analysisAlert"></div>
-            
-            <div class="data-section">
-                <h3>Analysis Jobs</h3>
-                <div id="analysisJobs" class="data-grid"></div>
+
+            <div class="section">
+                <h2>Analysis Status</h2>
+                <div id="analysisStatus" class="status-display">
+                    <div class="status-message">No analysis started</div>
+                </div>
             </div>
-            
-            <div class="data-section">
-                <h3>Analysis Results</h3>
-                <div id="analysisResults"></div>
+
+            <div class="section">
+                <h2>Analysis Results</h2>
+                <div id="analysisResults" class="results-display">
+                    <div class="results-message">No results available</div>
+                </div>
             </div>
         </div>
 
-        <!-- Finder Tab -->
+        <!-- Person Finder Tab -->
         <div id="finder" class="tab-content">
-            <h2>Person Finder</h2>
-            
-            <div class="form-group">
-                <label for="referenceImage">Upload Reference Image:</label>
-                <div class="file-input">
-                    <input type="file" id="referenceImage" accept="image/*">
-                    <label for="referenceImage" class="file-input-label">
-                        📷 Choose reference image (JPG, PNG, BMP, GIF, TIFF, WEBP)
-                    </label>
+            <div class="section">
+                <h2>Upload Reference Image</h2>
+                <form id="imageUploadForm" class="upload-form">
+                    <div class="file-input-wrapper">
+                        <input type="file" id="imageFile" accept="image/*" required>
+                        <label for="imageFile" class="file-label">
+                            <span class="file-icon">📷</span>
+                            <span class="file-text">Choose image file...</span>
+                        </label>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Upload Image</button>
+                </form>
+            </div>
+
+            <div class="section">
+                <h2>Reference Images</h2>
+                <div id="imagesList" class="data-list">
+                    <div class="loading">Loading images...</div>
                 </div>
             </div>
-            
-            <div class="form-group">
-                <label for="personDescription">Person Description:</label>
-                <input type="text" id="personDescription" placeholder="e.g., John Doe, wearing red shirt">
+
+            <div class="section">
+                <h2>Search for Person</h2>
+                <div class="search-controls">
+                    <select id="imageSelect" class="select-input">
+                        <option value="">Select a reference image...</option>
+                    </select>
+                    <button id="searchBtn" class="btn btn-primary" onclick="searchPerson()">Search</button>
+                </div>
             </div>
-            
-            <button class="btn btn-success" onclick="uploadReferenceImage()">Upload Image</button>
-            <button class="btn btn-secondary" onclick="loadReferenceImages()">Refresh Images</button>
-            
-            <div id="finderAlert"></div>
-            
-            <div class="data-section">
-                <h3>Reference Images</h3>
-                <div id="referenceImagesList" class="data-grid"></div>
-            </div>
-            
-            <hr style="margin: 30px 0;">
-            
-            <h3>Search for Person</h3>
-            <div class="form-group">
-                <label for="searchImageId">Select Reference Image:</label>
-                <select id="searchImageId">
-                    <option value="">Choose a reference image...</option>
-                </select>
-            </div>
-            
-            <div class="form-group">
-                <label for="searchVideoIds">Select Videos to Search:</label>
-                <select id="searchVideoIds" multiple>
-                    <option value="">Choose videos...</option>
-                </select>
-            </div>
-            
-            <button class="btn btn-success" onclick="searchPerson()">Search for Person</button>
-            <button class="btn btn-secondary" onclick="checkSearchStatus()">Check Search Status</button>
-            <button class="btn btn-secondary" onclick="getSearchResults()">Get Search Results</button>
-            
-            <div class="data-section">
-                <h3>Search Results</h3>
-                <div id="searchResults"></div>
+
+            <div class="section">
+                <h2>Search Results</h2>
+                <div id="searchResults" class="results-display">
+                    <div class="results-message">No search results</div>
+                </div>
             </div>
         </div>
 
         <!-- Health Tab -->
         <div id="health" class="tab-content">
-            <h2>Service Health</h2>
-            
-            <button class="btn btn-secondary" onclick="checkHealth()">Check Health</button>
-            
-            <div id="healthAlert"></div>
-            
-            <div class="data-section">
-                <h3>Service Status</h3>
-                <div id="healthStatus"></div>
+            <div class="section">
+                <h2>Service Health</h2>
+                <div id="healthStatus" class="health-display">
+                    <div class="loading">Checking health...</div>
+                </div>
             </div>
-        </div>
-
-        <div id="loading" class="loading">
-            <div class="spinner"></div>
-            <p>Processing...</p>
         </div>
     </div>
 
     <script>
         const API_BASE = 'http://localhost:8080/api/v1';
-        let currentSearchJobId = null;
+        let currentAnalysisJob = null;
 
-        // Tab Management
+        // Tab switching
         function showTab(tabName) {
-            // Hide all tab contents
-            document.querySelectorAll('.tab-content').forEach(tab => {
-                tab.classList.remove('active');
-            });
+            document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
             
-            // Remove active class from all tab buttons
-            document.querySelectorAll('.tab-button').forEach(btn => {
-                btn.classList.remove('active');
-            });
-            
-            // Show selected tab
             document.getElementById(tabName).classList.add('active');
-            
-            // Add active class to clicked button
             event.target.classList.add('active');
             
             // Load data for the tab
-            switch(tabName) {
-                case 'videos':
+            if (tabName === 'videos') loadVideos();
+            else if (tabName === 'analysis') loadVideosForAnalysis();
+            else if (tabName === 'finder') loadImages();
+            else if (tabName === 'health') checkHealth();
+        }
+
+        // File upload handling
+        document.getElementById('videoFile').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                document.querySelector('#videos .file-text').textContent = file.name;
+            }
+        });
+
+        document.getElementById('imageFile').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                document.querySelector('#finder .file-text').textContent = file.name;
+            }
+        });
+
+        // Video upload
+        document.getElementById('uploadForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const file = document.getElementById('videoFile').files[0];
+            if (!file) return;
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                const response = await fetch(`${API_BASE}/videos/upload`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const result = await response.json();
+                if (result.success) {
+                    showToast('Video uploaded successfully!', 'success');
                     loadVideos();
-                    break;
-                case 'analysis':
-                    loadVideosForAnalysis();
-                    break;
-                case 'finder':
-                    loadReferenceImages();
-                    loadVideosForSearch();
-                    break;
-                case 'health':
-                    checkHealth();
-                    break;
+                    document.getElementById('uploadForm').reset();
+                    document.querySelector('#videos .file-text').textContent = 'Choose video file...';
+                } else {
+                    showToast(result.message || 'Upload failed', 'error');
+                }
+            } catch (error) {
+                showToast('Upload failed: ' + error.message, 'error');
+            }
+        });
+
+        // Image upload
+        document.getElementById('imageUploadForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const file = document.getElementById('imageFile').files[0];
+            if (!file) return;
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                const response = await fetch(`${API_BASE}/finder/images/upload`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const result = await response.json();
+                if (result.success) {
+                    showToast('Image uploaded successfully!', 'success');
+                    loadImages();
+                    document.getElementById('imageUploadForm').reset();
+                    document.querySelector('#finder .file-text').textContent = 'Choose image file...';
+                } else {
+                    showToast(result.message || 'Upload failed', 'error');
+                }
+            } catch (error) {
+                showToast('Upload failed: ' + error.message, 'error');
+            }
+        });
+
+        // Load videos
+        async function loadVideos() {
+            try {
+                const response = await fetch(`${API_BASE}/videos`);
+                const result = await response.json();
+                
+                const videosList = document.getElementById('videosList');
+                if (result.success && result.videos && result.videos.length > 0) {
+                    videosList.innerHTML = result.videos.map(video => `
+                        <div class="data-card">
+                            <div class="card-header">
+                                <h3>${video.original_name}</h3>
+                                <span class="status ${video.status}">${video.status}</span>
+                            </div>
+                            <div class="card-content">
+                                <p><strong>ID:</strong> ${video.id}</p>
+                                <p><strong>Size:</strong> ${formatFileSize(video.file_size)}</p>
+                                <p><strong>Uploaded:</strong> ${new Date(video.uploaded_at).toLocaleString()}</p>
+                                ${video.duration ? `<p><strong>Duration:</strong> ${formatDuration(video.duration)}</p>` : ''}
+                                ${video.width && video.height ? `<p><strong>Resolution:</strong> ${video.width}x${video.height}</p>` : ''}
+                            </div>
+                            <div class="card-actions">
+                                <button class="btn btn-danger" onclick="deleteVideo('${video.id}')">Delete</button>
+                            </div>
+                        </div>
+                    `).join('');
+                } else {
+                    videosList.innerHTML = '<div class="empty-state">No videos uploaded yet</div>';
+                }
+            } catch (error) {
+                document.getElementById('videosList').innerHTML = '<div class="error">Failed to load videos</div>';
             }
         }
 
-        // Utility Functions
-        function showLoading() {
-            document.getElementById('loading').classList.add('show');
+        // Load videos for analysis
+        async function loadVideosForAnalysis() {
+            try {
+                const response = await fetch(`${API_BASE}/videos`);
+                const result = await response.json();
+                
+                const videoSelect = document.getElementById('videoSelect');
+                videoSelect.innerHTML = '<option value="">Select a video...</option>';
+                
+                if (result.success && result.videos) {
+                    result.videos.forEach(video => {
+                        const option = document.createElement('option');
+                        option.value = video.id;
+                        option.textContent = video.original_name;
+                        videoSelect.appendChild(option);
+                    });
+                }
+            } catch (error) {
+                console.error('Failed to load videos for analysis:', error);
+            }
         }
 
-        function hideLoading() {
-            document.getElementById('loading').classList.remove('show');
+        // Start analysis
+        async function startAnalysis() {
+            const videoId = document.getElementById('videoSelect').value;
+            if (!videoId) {
+                showToast('Please select a video first', 'error');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}/analysis/${videoId}/start`, {
+                    method: 'POST'
+                });
+
+                const result = await response.json();
+                if (result.success) {
+                    currentAnalysisJob = result.job;
+                    showToast('Analysis started successfully!', 'success');
+                    updateAnalysisStatus();
+                } else {
+                    showToast(result.message || 'Failed to start analysis', 'error');
+                }
+            } catch (error) {
+                showToast('Failed to start analysis: ' + error.message, 'error');
+            }
         }
 
-        function showAlert(containerId, message, type = 'info') {
-            const container = document.getElementById(containerId);
-            container.innerHTML = `<div class="alert alert-${type}">${message}</div>`;
-            setTimeout(() => {
-                container.innerHTML = '';
-            }, 5000);
+        // Update analysis status
+        async function updateAnalysisStatus() {
+            const videoId = document.getElementById('videoSelect').value;
+            if (!videoId) return;
+
+            try {
+                const response = await fetch(`${API_BASE}/analysis/${videoId}/status`);
+                const result = await response.json();
+                
+                const statusDisplay = document.getElementById('analysisStatus');
+                if (result.success) {
+                    const job = result.job;
+                    statusDisplay.innerHTML = `
+                        <div class="status-card ${job.status}">
+                            <h3>Analysis Status: ${job.status.toUpperCase()}</h3>
+                            <div class="progress-bar">
+                                <div class="progress-fill" style="width: ${job.progress}%"></div>
+                            </div>
+                            <p><strong>Progress:</strong> ${job.progress}%</p>
+                            <p><strong>Started:</strong> ${new Date(job.started_at).toLocaleString()}</p>
+                            ${job.completed_at ? `<p><strong>Completed:</strong> ${new Date(job.completed_at).toLocaleString()}</p>` : ''}
+                            ${job.error ? `<p class="error"><strong>Error:</strong> ${job.error}</p>` : ''}
+                        </div>
+                    `;
+
+                    if (job.status === 'completed') {
+                        getAnalysisResults();
+                    } else if (job.status === 'running' || job.status === 'pending') {
+                        setTimeout(updateAnalysisStatus, 2000);
+                    }
+                } else {
+                    statusDisplay.innerHTML = '<div class="status-message">No analysis job found</div>';
+                }
+            } catch (error) {
+                document.getElementById('analysisStatus').innerHTML = '<div class="error">Failed to get status</div>';
+            }
         }
 
+        // Get analysis results
+        async function getAnalysisResults() {
+            const videoId = document.getElementById('videoSelect').value;
+            if (!videoId) return;
+
+            try {
+                const response = await fetch(`${API_BASE}/analysis/${videoId}/enhanced-results`);
+                const result = await response.json();
+                
+                const resultsDisplay = document.getElementById('analysisResults');
+                if (result.success) {
+                    const data = result.results;
+                    
+                    // Create stats grid
+                    const statsGrid = `
+                        <div class="stats-grid">
+                            <div class="stat-item">
+                                <div class="stat-number">${data.total_frames}</div>
+                                <div class="stat-label">Total Frames</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-number">${data.total_people}</div>
+                                <div class="stat-label">Total People</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-number">${data.unique_people}</div>
+                                <div class="stat-label">Unique People</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-number">${data.persons ? data.persons.length : 0}</div>
+                                <div class="stat-label">Detected Persons</div>
+                            </div>
+                        </div>
+                    `;
+
+                    // Create people grid
+                    let peopleGrid = '<div class="people-section"><h3>Detected People</h3><div class="people-grid">';
+                    
+                    if (data.persons && data.persons.length > 0) {
+                        data.persons.forEach((person, index) => {
+                            const faceImage = person.best_face && person.best_face.face_image 
+                                ? `data:image/svg+xml;base64,${person.best_face.face_image}`
+                                : null;
+                            
+                            peopleGrid += `
+                                <div class="person-card">
+                                    <div class="person-face">
+                                        ${faceImage 
+                                            ? `<img src="${faceImage}" alt="Face" class="face-image">`
+                                            : '<div class="face-placeholder">👤</div>'
+                                        }
+                                    </div>
+                                    <div class="person-info">
+                                        <h4>Person ${index + 1}</h4>
+                                        <p><strong>ID:</strong> ${person.person_id}</p>
+                                        <p><strong>First Seen:</strong> ${formatTime(person.first_seen)}</p>
+                                        <p><strong>Last Seen:</strong> ${formatTime(person.last_seen)}</p>
+                                        <p><strong>Total Frames:</strong> ${person.total_frames}</p>
+                                        <p><strong>Duration:</strong> ${formatDuration(person.last_seen - person.first_seen)}</p>
+                                        ${person.faces && person.faces.length > 0 
+                                            ? `<p><strong>Face Detections:</strong> ${person.faces.length}</p>` 
+                                            : ''
+                                        }
+                                    </div>
+                                </div>
+                            `;
+                        });
+                    } else {
+                        peopleGrid += '<div class="empty-state">No people detected</div>';
+                    }
+                    
+                    peopleGrid += '</div></div>';
+
+                    resultsDisplay.innerHTML = statsGrid + peopleGrid;
+                } else {
+                    resultsDisplay.innerHTML = '<div class="results-message">No results available</div>';
+                }
+            } catch (error) {
+                document.getElementById('analysisResults').innerHTML = '<div class="error">Failed to get results</div>';
+            }
+        }
+
+        // Load images
+        async function loadImages() {
+            try {
+                const response = await fetch(`${API_BASE}/finder/images`);
+                const result = await response.json();
+                
+                const imagesList = document.getElementById('imagesList');
+                if (result.success && result.images && result.images.length > 0) {
+                    imagesList.innerHTML = result.images.map(image => `
+                        <div class="data-card">
+                            <div class="card-header">
+                                <h3>${image.original_name}</h3>
+                            </div>
+                            <div class="card-content">
+                                <p><strong>ID:</strong> ${image.id}</p>
+                                <p><strong>Size:</strong> ${formatFileSize(image.file_size)}</p>
+                                <p><strong>Uploaded:</strong> ${new Date(image.uploaded_at).toLocaleString()}</p>
+                            </div>
+                            <div class="card-actions">
+                                <button class="btn btn-danger" onclick="deleteImage('${image.id}')">Delete</button>
+                            </div>
+                        </div>
+                    `).join('');
+
+                    // Update image select
+                    const imageSelect = document.getElementById('imageSelect');
+                    imageSelect.innerHTML = '<option value="">Select a reference image...</option>';
+                    result.images.forEach(image => {
+                        const option = document.createElement('option');
+                        option.value = image.id;
+                        option.textContent = image.original_name;
+                        imageSelect.appendChild(option);
+                    });
+                } else {
+                    imagesList.innerHTML = '<div class="empty-state">No images uploaded yet</div>';
+                }
+            } catch (error) {
+                document.getElementById('imagesList').innerHTML = '<div class="error">Failed to load images</div>';
+            }
+        }
+
+        // Search person
+        async function searchPerson() {
+            const imageId = document.getElementById('imageSelect').value;
+            if (!imageId) {
+                showToast('Please select a reference image first', 'error');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}/finder/search`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        reference_image_id: imageId
+                    })
+                });
+
+                const result = await response.json();
+                if (result.success) {
+                    showToast('Search started successfully!', 'success');
+                    // In a real implementation, you would poll for results
+                    document.getElementById('searchResults').innerHTML = '<div class="results-message">Search in progress...</div>';
+                } else {
+                    showToast(result.message || 'Search failed', 'error');
+                }
+            } catch (error) {
+                showToast('Search failed: ' + error.message, 'error');
+            }
+        }
+
+        // Check health
+        async function checkHealth() {
+            try {
+                const response = await fetch(`${API_BASE}/health`);
+                const result = await response.json();
+                
+                const healthDisplay = document.getElementById('healthStatus');
+                healthDisplay.innerHTML = `
+                    <div class="health-card">
+                        <h3>Service Status: ${result.status}</h3>
+                        <p><strong>Service:</strong> ${result.service}</p>
+                        <p><strong>Timestamp:</strong> ${new Date(result.timestamp).toLocaleString()}</p>
+                    </div>
+                `;
+            } catch (error) {
+                document.getElementById('healthStatus').innerHTML = '<div class="error">Service unavailable</div>';
+            }
+        }
+
+        // Delete video
+        async function deleteVideo(videoId) {
+            if (!confirm('Are you sure you want to delete this video?')) return;
+
+            try {
+                const response = await fetch(`${API_BASE}/videos/${videoId}`, {
+                    method: 'DELETE'
+                });
+
+                const result = await response.json();
+                if (result.success) {
+                    showToast('Video deleted successfully!', 'success');
+                    loadVideos();
+                    loadVideosForAnalysis();
+                } else {
+                    showToast(result.message || 'Delete failed', 'error');
+                }
+            } catch (error) {
+                showToast('Delete failed: ' + error.message, 'error');
+            }
+        }
+
+        // Delete image
+        async function deleteImage(imageId) {
+            if (!confirm('Are you sure you want to delete this image?')) return;
+
+            try {
+                const response = await fetch(`${API_BASE}/finder/images/${imageId}`, {
+                    method: 'DELETE'
+                });
+
+                const result = await response.json();
+                if (result.success) {
+                    showToast('Image deleted successfully!', 'success');
+                    loadImages();
+                } else {
+                    showToast(result.message || 'Delete failed', 'error');
+                }
+            } catch (error) {
+                showToast('Delete failed: ' + error.message, 'error');
+            }
+        }
+
+        // Utility functions
         function formatFileSize(bytes) {
             if (bytes === 0) return '0 Bytes';
             const k = 1024;
@@ -628,559 +561,35 @@
             return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
         }
 
-        function formatDate(dateString) {
-            return new Date(dateString).toLocaleString();
+        function formatDuration(seconds) {
+            const mins = Math.floor(seconds / 60);
+            const secs = Math.floor(seconds % 60);
+            return `${mins}:${secs.toString().padStart(2, '0')}`;
         }
 
-        // Video Management
-        async function uploadVideo() {
-            const fileInput = document.getElementById('videoFile');
-            const file = fileInput.files[0];
-            
-            if (!file) {
-                showAlert('videoAlert', 'Please select a video file', 'error');
-                return;
-            }
-
-            const formData = new FormData();
-            formData.append('file', file);
-
-            showLoading();
-            
-            try {
-                const response = await fetch(`${API_BASE}/videos/upload`, {
-                    method: 'POST',
-                    body: formData
-                });
-
-                const result = await response.json();
-                
-                if (result.success) {
-                    showAlert('videoAlert', 'Video uploaded successfully!', 'success');
-                    fileInput.value = '';
-                    loadVideos();
-                } else {
-                    showAlert('videoAlert', `Upload failed: ${result.message}`, 'error');
-                }
-            } catch (error) {
-                showAlert('videoAlert', `Error: ${error.message}`, 'error');
-            } finally {
-                hideLoading();
-            }
+        function formatTime(seconds) {
+            const mins = Math.floor(seconds / 60);
+            const secs = Math.floor(seconds % 60);
+            return `${mins}:${secs.toString().padStart(2, '0')}`;
         }
 
-        async function loadVideos() {
-            showLoading();
+        function showToast(message, type = 'info') {
+            const toast = document.createElement('div');
+            toast.className = `toast toast-${type}`;
+            toast.textContent = message;
+            document.body.appendChild(toast);
             
-            try {
-                const response = await fetch(`${API_BASE}/videos`);
-                const result = await response.json();
-                
-                const videosList = document.getElementById('videosList');
-                
-                if (result.success && result.videos && result.videos.length > 0) {
-                    videosList.innerHTML = result.videos.map(video => `
-                        <div class="data-card">
-                            <h3>${video.original_filename}</h3>
-                            <p><strong>ID:</strong> ${video.id}</p>
-                            <p><strong>Size:</strong> ${formatFileSize(video.file_size)}</p>
-                            <p><strong>Status:</strong> <span class="status ${video.status}">${video.status}</span></p>
-                            <p><strong>Uploaded:</strong> ${formatDate(video.created_at)}</p>
-                            ${video.duration ? `<p><strong>Duration:</strong> ${video.duration}s</p>` : ''}
-                            ${video.width ? `<p><strong>Resolution:</strong> ${video.width}x${video.height}</p>` : ''}
-                            <div style="margin-top: 10px;">
-                                <button class="btn btn-secondary" onclick="downloadVideo('${video.id}')">Download</button>
-                                <button class="btn btn-danger" onclick="deleteVideo('${video.id}')">Delete</button>
-                            </div>
-                        </div>
-                    `).join('');
-                } else {
-                    videosList.innerHTML = '<p>No videos uploaded yet.</p>';
-                }
-            } catch (error) {
-                showAlert('videoAlert', `Error loading videos: ${error.message}`, 'error');
-            } finally {
-                hideLoading();
-            }
+            setTimeout(() => {
+                toast.classList.add('show');
+            }, 100);
+            
+            setTimeout(() => {
+                toast.classList.remove('show');
+                setTimeout(() => document.body.removeChild(toast), 300);
+            }, 3000);
         }
 
-        async function deleteVideo(videoId) {
-            if (!confirm('Are you sure you want to delete this video?')) return;
-            
-            showLoading();
-            
-            try {
-                const response = await fetch(`${API_BASE}/videos/${videoId}`, {
-                    method: 'DELETE'
-                });
-
-                const result = await response.json();
-                
-                if (result.success) {
-                    showAlert('videoAlert', 'Video deleted successfully!', 'success');
-                    loadVideos();
-                } else {
-                    showAlert('videoAlert', `Delete failed: ${result.message}`, 'error');
-                }
-            } catch (error) {
-                showAlert('videoAlert', `Error: ${error.message}`, 'error');
-            } finally {
-                hideLoading();
-            }
-        }
-
-        async function downloadVideo(videoId) {
-            window.open(`${API_BASE}/videos/${videoId}/download`, '_blank');
-        }
-
-        // Analysis Management
-        async function loadVideosForAnalysis() {
-            try {
-                const response = await fetch(`${API_BASE}/videos`);
-                const result = await response.json();
-                
-                const select = document.getElementById('analysisVideoId');
-                select.innerHTML = '<option value="">Choose a video...</option>';
-                
-                if (result.success && result.videos) {
-                    result.videos.forEach(video => {
-                        const option = document.createElement('option');
-                        option.value = video.id;
-                        option.textContent = video.original_filename;
-                        select.appendChild(option);
-                    });
-                }
-            } catch (error) {
-                console.error('Error loading videos for analysis:', error);
-            }
-        }
-
-        async function startAnalysis() {
-            const videoId = document.getElementById('analysisVideoId').value;
-            
-            if (!videoId) {
-                showAlert('analysisAlert', 'Please select a video', 'error');
-                return;
-            }
-
-            showLoading();
-            
-            try {
-                const response = await fetch(`${API_BASE}/analysis/${videoId}/start`, {
-                    method: 'POST'
-                });
-
-                const result = await response.json();
-                
-                if (result.success) {
-                    showAlert('analysisAlert', 'Analysis started successfully!', 'success');
-                    checkAnalysisStatus();
-                } else {
-                    showAlert('analysisAlert', `Analysis failed: ${result.message}`, 'error');
-                }
-            } catch (error) {
-                showAlert('analysisAlert', `Error: ${error.message}`, 'error');
-            } finally {
-                hideLoading();
-            }
-        }
-
-        async function checkAnalysisStatus() {
-            const videoId = document.getElementById('analysisVideoId').value;
-            
-            if (!videoId) {
-                showAlert('analysisAlert', 'Please select a video', 'error');
-                return;
-            }
-
-            showLoading();
-            
-            try {
-                const response = await fetch(`${API_BASE}/analysis/${videoId}/status`);
-                const result = await response.json();
-                
-                if (result.success) {
-                    const jobsContainer = document.getElementById('analysisJobs');
-                    const job = result.job;
-                    
-                    jobsContainer.innerHTML = `
-                        <div class="data-card">
-                            <h3>Analysis Job</h3>
-                            <p><strong>Job ID:</strong> ${job.id}</p>
-                            <p><strong>Status:</strong> <span class="status ${job.status}">${job.status}</span></p>
-                            <p><strong>Progress:</strong> ${job.progress}%</p>
-                            <div class="progress-bar">
-                                <div class="progress-fill" style="width: ${job.progress}%"></div>
-                            </div>
-                            <p><strong>Created:</strong> ${formatDate(job.created_at)}</p>
-                            ${job.started_at ? `<p><strong>Started:</strong> ${formatDate(job.started_at)}</p>` : ''}
-                            ${job.completed_at ? `<p><strong>Completed:</strong> ${formatDate(job.completed_at)}</p>` : ''}
-                            ${job.error_message ? `<p><strong>Error:</strong> ${job.error_message}</p>` : ''}
-                        </div>
-                    `;
-                } else {
-                    showAlert('analysisAlert', `Status check failed: ${result.message}`, 'error');
-                }
-            } catch (error) {
-                showAlert('analysisAlert', `Error: ${error.message}`, 'error');
-            } finally {
-                hideLoading();
-            }
-        }
-
-        async function getAnalysisResults() {
-            const videoId = document.getElementById('analysisVideoId').value;
-            
-            if (!videoId) {
-                showAlert('analysisAlert', 'Please select a video', 'error');
-                return;
-            }
-
-            showLoading();
-            
-            try {
-                const response = await fetch(`${API_BASE}/analysis/${videoId}/enhanced-results`);
-                const result = await response.json();
-                
-                if (result.success) {
-                    const resultsContainer = document.getElementById('analysisResults');
-                    const results = result.results;
-                    
-                    // Create people cards with faces
-                    let peopleCards = '';
-                    if (results.persons && results.persons.length > 0) {
-                        peopleCards = `
-                            <div class="people-section">
-                                <h4>👥 Detected People (${results.unique_people})</h4>
-                                <div class="people-grid">
-                                    ${results.persons.map((person, index) => `
-                                        <div class="person-card">
-                                            <div class="person-face">
-                                                ${person.best_face && person.best_face.face_image ? 
-                                                    `<img src="${person.best_face.face_image}" alt="Person ${person.person_number}" class="face-image">` :
-                                                    `<div class="face-placeholder">👤</div>`
-                                                }
-                                            </div>
-                                            <div class="person-info">
-                                                <h5>Person ${person.person_number}</h5>
-                                                <p><strong>Duration:</strong> ${(person.last_time - person.first_time).toFixed(1)}s</p>
-                                                <p><strong>Frames:</strong> ${person.total_frames}</p>
-                                                <p><strong>First seen:</strong> ${person.first_time.toFixed(1)}s</p>
-                                                <p><strong>Last seen:</strong> ${person.last_time.toFixed(1)}s</p>
-                                                ${person.best_face ? `<p><strong>Confidence:</strong> ${(person.best_face.confidence * 100).toFixed(1)}%</p>` : ''}
-                                            </div>
-                                        </div>
-                                    `).join('')}
-                                </div>
-                            </div>
-                        `;
-                    }
-                    
-                    resultsContainer.innerHTML = `
-                        <div class="data-card">
-                            <h3>📊 Analysis Summary</h3>
-                            <div class="stats-grid">
-                                <div class="stat-item">
-                                    <div class="stat-number">${results.total_frames}</div>
-                                    <div class="stat-label">Total Frames</div>
-                                </div>
-                                <div class="stat-item">
-                                    <div class="stat-number">${results.total_people}</div>
-                                    <div class="stat-label">Total Detections</div>
-                                </div>
-                                <div class="stat-item">
-                                    <div class="stat-number">${results.unique_people}</div>
-                                    <div class="stat-label">Unique People</div>
-                                </div>
-                            </div>
-                        </div>
-                        ${peopleCards}
-                    `;
-                } else {
-                    showAlert('analysisAlert', `Results not available: ${result.message}`, 'error');
-                }
-            } catch (error) {
-                showAlert('analysisAlert', `Error: ${error.message}`, 'error');
-            } finally {
-                hideLoading();
-            }
-        }
-
-        // Finder Management
-        async function uploadReferenceImage() {
-            const fileInput = document.getElementById('referenceImage');
-            const description = document.getElementById('personDescription').value;
-            const file = fileInput.files[0];
-            
-            if (!file) {
-                showAlert('finderAlert', 'Please select an image file', 'error');
-                return;
-            }
-
-            const formData = new FormData();
-            formData.append('file', file);
-            if (description) {
-                formData.append('description', description);
-            }
-
-            showLoading();
-            
-            try {
-                const response = await fetch(`${API_BASE}/finder/upload`, {
-                    method: 'POST',
-                    body: formData
-                });
-
-                const result = await response.json();
-                
-                if (result.id) {
-                    showAlert('finderAlert', 'Reference image uploaded successfully!', 'success');
-                    fileInput.value = '';
-                    document.getElementById('personDescription').value = '';
-                    loadReferenceImages();
-                } else {
-                    showAlert('finderAlert', 'Upload failed', 'error');
-                }
-            } catch (error) {
-                showAlert('finderAlert', `Error: ${error.message}`, 'error');
-            } finally {
-                hideLoading();
-            }
-        }
-
-        async function loadReferenceImages() {
-            showLoading();
-            
-            try {
-                const response = await fetch(`${API_BASE}/finder/images`);
-                const images = await response.json();
-                
-                const imagesList = document.getElementById('referenceImagesList');
-                const searchSelect = document.getElementById('searchImageId');
-                
-                // Update images list
-                if (images && images.length > 0) {
-                    imagesList.innerHTML = images.map(image => `
-                        <div class="data-card">
-                            <h3>${image.original_filename}</h3>
-                            <p><strong>ID:</strong> ${image.id}</p>
-                            <p><strong>Size:</strong> ${formatFileSize(image.file_size)}</p>
-                            <p><strong>Description:</strong> ${image.description || 'No description'}</p>
-                            <p><strong>Uploaded:</strong> ${formatDate(image.created_at)}</p>
-                            <div style="margin-top: 10px;">
-                                <button class="btn btn-danger" onclick="deleteReferenceImage('${image.id}')">Delete</button>
-                            </div>
-                        </div>
-                    `).join('');
-                    
-                    // Update search select
-                    searchSelect.innerHTML = '<option value="">Choose a reference image...</option>';
-                    images.forEach(image => {
-                        const option = document.createElement('option');
-                        option.value = image.id;
-                        option.textContent = `${image.original_filename} - ${image.description || 'No description'}`;
-                        searchSelect.appendChild(option);
-                    });
-                } else {
-                    imagesList.innerHTML = '<p>No reference images uploaded yet.</p>';
-                    searchSelect.innerHTML = '<option value="">No reference images available</option>';
-                }
-            } catch (error) {
-                showAlert('finderAlert', `Error loading images: ${error.message}`, 'error');
-            } finally {
-                hideLoading();
-            }
-        }
-
-        async function loadVideosForSearch() {
-            try {
-                const response = await fetch(`${API_BASE}/videos`);
-                const result = await response.json();
-                
-                const select = document.getElementById('searchVideoIds');
-                select.innerHTML = '<option value="">Choose videos...</option>';
-                
-                if (result.success && result.videos) {
-                    result.videos.forEach(video => {
-                        const option = document.createElement('option');
-                        option.value = video.id;
-                        option.textContent = video.original_filename;
-                        select.appendChild(option);
-                    });
-                }
-            } catch (error) {
-                console.error('Error loading videos for search:', error);
-            }
-        }
-
-        async function deleteReferenceImage(imageId) {
-            if (!confirm('Are you sure you want to delete this reference image?')) return;
-            
-            showLoading();
-            
-            try {
-                const response = await fetch(`${API_BASE}/finder/images/${imageId}`, {
-                    method: 'DELETE'
-                });
-
-                const result = await response.json();
-                
-                if (result.success) {
-                    showAlert('finderAlert', 'Reference image deleted successfully!', 'success');
-                    loadReferenceImages();
-                } else {
-                    showAlert('finderAlert', `Delete failed: ${result.message}`, 'error');
-                }
-            } catch (error) {
-                showAlert('finderAlert', `Error: ${error.message}`, 'error');
-            } finally {
-                hideLoading();
-            }
-        }
-
-        async function searchPerson() {
-            const imageId = document.getElementById('searchImageId').value;
-            const videoSelect = document.getElementById('searchVideoIds');
-            const selectedVideos = Array.from(videoSelect.selectedOptions).map(option => option.value);
-            
-            if (!imageId) {
-                showAlert('finderAlert', 'Please select a reference image', 'error');
-                return;
-            }
-
-            if (selectedVideos.length === 0) {
-                showAlert('finderAlert', 'Please select at least one video', 'error');
-                return;
-            }
-
-            showLoading();
-            
-            try {
-                const response = await fetch(`${API_BASE}/finder/search`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        reference_image_id: imageId,
-                        video_ids: selectedVideos
-                    })
-                });
-
-                const result = await response.json();
-                
-                if (result.success) {
-                    currentSearchJobId = result.search_job.id;
-                    showAlert('finderAlert', 'Person search started successfully!', 'success');
-                    checkSearchStatus();
-                } else {
-                    showAlert('finderAlert', `Search failed: ${result.message}`, 'error');
-                }
-            } catch (error) {
-                showAlert('finderAlert', `Error: ${error.message}`, 'error');
-            } finally {
-                hideLoading();
-            }
-        }
-
-        async function checkSearchStatus() {
-            if (!currentSearchJobId) {
-                showAlert('finderAlert', 'No active search job', 'error');
-                return;
-            }
-
-            showLoading();
-            
-            try {
-                const response = await fetch(`${API_BASE}/finder/search/${currentSearchJobId}/status`);
-                const job = await response.json();
-                
-                showAlert('finderAlert', `Search status: ${job.status} (${job.progress}%)`, 'info');
-                
-                if (job.status === 'completed') {
-                    getSearchResults();
-                }
-            } catch (error) {
-                showAlert('finderAlert', `Error: ${error.message}`, 'error');
-            } finally {
-                hideLoading();
-            }
-        }
-
-        async function getSearchResults() {
-            if (!currentSearchJobId) {
-                showAlert('finderAlert', 'No active search job', 'error');
-                return;
-            }
-
-            showLoading();
-            
-            try {
-                const response = await fetch(`${API_BASE}/finder/search/${currentSearchJobId}/results`);
-                const result = await response.json();
-                
-                if (result.success) {
-                    const resultsContainer = document.getElementById('searchResults');
-                    
-                    if (result.results && result.results.length > 0) {
-                        resultsContainer.innerHTML = `
-                            <div class="search-results">
-                                <h4>Found ${result.total} matches</h4>
-                                ${result.results.map(match => `
-                                    <div class="match-item">
-                                        <h4>Video: ${match.video_id}</h4>
-                                        <div class="match-details">
-                                            <p><strong>First Appearance:</strong> ${match.first_appearance}s</p>
-                                            <p><strong>Last Appearance:</strong> ${match.last_appearance}s</p>
-                                            <p><strong>Total Appearances:</strong> ${match.total_appearances}</p>
-                                            <p><strong>Confidence:</strong> ${(match.confidence * 100).toFixed(1)}%</p>
-                                        </div>
-                                    </div>
-                                `).join('')}
-                            </div>
-                        `;
-                    } else {
-                        resultsContainer.innerHTML = '<p>No matches found.</p>';
-                    }
-                } else {
-                    showAlert('finderAlert', `Results not available: ${result.message}`, 'error');
-                }
-            } catch (error) {
-                showAlert('finderAlert', `Error: ${error.message}`, 'error');
-            } finally {
-                hideLoading();
-            }
-        }
-
-        // Health Check
-        async function checkHealth() {
-            showLoading();
-            
-            try {
-                const response = await fetch(`${API_BASE}/health`);
-                const result = await response.json();
-                
-                const healthContainer = document.getElementById('healthStatus');
-                
-                healthContainer.innerHTML = `
-                    <div class="data-card">
-                        <h3>Service Status</h3>
-                        <p><strong>Status:</strong> <span class="status ${result.status}">${result.status}</span></p>
-                        <p><strong>Service:</strong> ${result.service}</p>
-                        <p><strong>Version:</strong> ${result.version}</p>
-                        <p><strong>Time:</strong> ${formatDate(result.time)}</p>
-                    </div>
-                `;
-                
-                showAlert('healthAlert', 'Health check completed successfully!', 'success');
-            } catch (error) {
-                showAlert('healthAlert', `Health check failed: ${error.message}`, 'error');
-            } finally {
-                hideLoading();
-            }
-        }
-
-        // Initialize the page
+        // Initialize
         document.addEventListener('DOMContentLoaded', function() {
             loadVideos();
             checkHealth();

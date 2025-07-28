@@ -2,27 +2,22 @@ package services
 
 import (
 	"database/sql"
-	"encoding/json"
 	"fmt"
-	"io"
 	"mime/multipart"
 	"os"
 	"path/filepath"
-	"strings"
 	"time"
 
 	"video-analysis-service/internal/config"
 	"video-analysis-service/internal/models"
 
 	"github.com/google/uuid"
-	"go.uber.org/zap"
 )
 
 // FinderService handles person finding operations
 type FinderService struct {
 	db  *sql.DB
 	cfg *config.Config
-	log *zap.Logger
 }
 
 // NewFinderService creates a new finder service
@@ -33,374 +28,312 @@ func NewFinderService(db *sql.DB, cfg *config.Config) *FinderService {
 	}
 }
 
-// UploadReferenceImage uploads and stores a reference image
-func (s *FinderService) UploadReferenceImage(file *multipart.FileHeader, description string) (*models.ReferenceImage, error) {
+// UploadReferenceImage uploads a reference image for person finding
+func (s *FinderService) UploadReferenceImage(file *multipart.FileHeader) (*models.ReferenceImage, error) {
 	// Validate file type
 	if !s.isValidImageType(file.Filename) {
-		return nil, fmt.Errorf("invalid image file type")
-	}
-
-	// Validate file size
-	if file.Size > s.cfg.Storage.MaxFileSize {
-		return nil, fmt.Errorf("file size exceeds maximum allowed size")
+		return nil, fmt.Errorf("unsupported image format")
 	}
 
 	// Generate unique filename
-	ext := filepath.Ext(file.Filename)
-	filename := uuid.New().String() + ext
-	filepath := filepath.Join(s.cfg.Storage.FinderDir, filename)
+	filename := uuid.New().String() + filepath.Ext(file.Filename)
+	filePath := filepath.Join(s.cfg.Storage.FinderDir, filename)
 
-	// Ensure directory exists
+	// Create directory if it doesn't exist
 	if err := os.MkdirAll(s.cfg.Storage.FinderDir, 0755); err != nil {
-		return nil, fmt.Errorf("failed to create finder directory: %w", err)
+		return nil, fmt.Errorf("failed to create directory: %v", err)
 	}
 
 	// Save file
-	src, err := file.Open()
+	if err := s.saveUploadedFile(file, filePath); err != nil {
+		return nil, fmt.Errorf("failed to save file: %v", err)
+	}
+
+	// Get file size
+	fileInfo, err := os.Stat(filePath)
 	if err != nil {
-		return nil, fmt.Errorf("failed to open uploaded file: %w", err)
-	}
-	defer src.Close()
-
-	dst, err := os.Create(filepath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create destination file: %w", err)
-	}
-	defer dst.Close()
-
-	if _, err = io.Copy(dst, src); err != nil {
-		return nil, fmt.Errorf("failed to copy file: %w", err)
+		return nil, fmt.Errorf("failed to get file info: %v", err)
 	}
 
-	// Create reference image record in database
+	// Create reference image record
 	refImage := &models.ReferenceImage{
-		ID:               uuid.New().String(),
-		Filename:         filename,
-		OriginalFilename: file.Filename,
-		FileSize:         file.Size,
-		Description:      description,
-		CreatedAt:        time.Now(),
+		ID:           uuid.New().String(),
+		Filename:     filename,
+		OriginalName: file.Filename,
+		FilePath:     filePath,
+		FileSize:     fileInfo.Size(),
+		UploadedAt:   time.Now(),
 	}
 
-	query := `INSERT INTO reference_images (id, filename, original_filename, file_size, description, created_at) 
-			  VALUES (?, ?, ?, ?, ?, ?)`
+	// Save to database
+	_, err = s.db.Exec(`
+		INSERT INTO reference_images (id, filename, original_name, file_path, file_size, uploaded_at)
+		VALUES (?, ?, ?, ?, ?, ?)
+	`, refImage.ID, refImage.Filename, refImage.OriginalName, refImage.FilePath, refImage.FileSize, refImage.UploadedAt)
 
-	_, err = s.db.Exec(query, refImage.ID, refImage.Filename, refImage.OriginalFilename,
-		refImage.FileSize, refImage.Description, refImage.CreatedAt)
 	if err != nil {
 		// Clean up file if database insert fails
-		os.Remove(filepath)
-		return nil, fmt.Errorf("failed to save reference image record: %w", err)
+		os.Remove(filePath)
+		return nil, fmt.Errorf("failed to save reference image: %v", err)
 	}
 
 	return refImage, nil
 }
 
-// ListReferenceImages retrieves all reference images
+// ListReferenceImages lists all reference images
 func (s *FinderService) ListReferenceImages() ([]models.ReferenceImage, error) {
-	query := `SELECT id, filename, original_filename, file_size, description, created_at 
-			  FROM reference_images ORDER BY created_at DESC`
-
-	rows, err := s.db.Query(query)
+	rows, err := s.db.Query(`
+		SELECT id, filename, original_name, file_path, file_size, uploaded_at
+		FROM reference_images ORDER BY uploaded_at DESC
+	`)
 	if err != nil {
-		return nil, fmt.Errorf("failed to query reference images: %w", err)
+		return nil, fmt.Errorf("failed to query reference images: %v", err)
 	}
 	defer rows.Close()
 
 	var images []models.ReferenceImage
 	for rows.Next() {
 		var image models.ReferenceImage
-		err := rows.Scan(
-			&image.ID, &image.Filename, &image.OriginalFilename,
-			&image.FileSize, &image.Description, &image.CreatedAt,
-		)
+		err := rows.Scan(&image.ID, &image.Filename, &image.OriginalName, &image.FilePath, &image.FileSize, &image.UploadedAt)
 		if err != nil {
-			return nil, fmt.Errorf("failed to scan reference image: %w", err)
+			return nil, fmt.Errorf("failed to scan reference image: %v", err)
 		}
 		images = append(images, image)
 	}
 
 	if images == nil {
-		images = []models.ReferenceImage{}
+		return []models.ReferenceImage{}, nil
 	}
+
 	return images, nil
 }
 
-// DeleteReferenceImage deletes a reference image and its associated file
-func (s *FinderService) DeleteReferenceImage(id string) error {
-	// Get image info first
-	query := `SELECT filename FROM reference_images WHERE id = ?`
-	var filename string
-	err := s.db.QueryRow(query, id).Scan(&filename)
+// DeleteReferenceImage deletes a reference image
+func (s *FinderService) DeleteReferenceImage(imageID string) error {
+	// Get file path before deleting
+	var filePath string
+	err := s.db.QueryRow("SELECT file_path FROM reference_images WHERE id = ?", imageID).Scan(&filePath)
 	if err != nil {
-		if err == sql.ErrNoRows {
-			return fmt.Errorf("reference image not found")
-		}
-		return fmt.Errorf("failed to get reference image: %w", err)
+		return fmt.Errorf("reference image not found: %v", err)
 	}
 
 	// Delete from database
-	query = `DELETE FROM reference_images WHERE id = ?`
-	result, err := s.db.Exec(query, id)
+	_, err = s.db.Exec("DELETE FROM reference_images WHERE id = ?", imageID)
 	if err != nil {
-		return fmt.Errorf("failed to delete reference image from database: %w", err)
-	}
-
-	rowsAffected, err := result.RowsAffected()
-	if err != nil {
-		return fmt.Errorf("failed to get rows affected: %w", err)
-	}
-
-	if rowsAffected == 0 {
-		return fmt.Errorf("reference image not found")
+		return fmt.Errorf("failed to delete reference image: %v", err)
 	}
 
 	// Delete file
-	filepath := filepath.Join(s.cfg.Storage.FinderDir, filename)
-	if err := os.Remove(filepath); err != nil && !os.IsNotExist(err) {
-		return fmt.Errorf("failed to delete reference image file: %w", err)
+	if err := os.Remove(filePath); err != nil {
+		// Log error but don't fail the operation
+		fmt.Printf("Warning: failed to delete file %s: %v\n", filePath, err)
 	}
 
 	return nil
 }
 
-// SearchPerson starts a search job to find a person in videos
-func (s *FinderService) SearchPerson(request *models.SearchPersonRequest) (*models.SearchJob, error) {
+// SearchPerson starts a person search job
+func (s *FinderService) SearchPerson(referenceImageID string) (*models.SearchJob, error) {
 	// Check if reference image exists
-	query := `SELECT id FROM reference_images WHERE id = ?`
-	var id string
-	err := s.db.QueryRow(query, request.ReferenceImageID).Scan(&id)
+	var exists bool
+	err := s.db.QueryRow("SELECT EXISTS(SELECT 1 FROM reference_images WHERE id = ?)", referenceImageID).Scan(&exists)
 	if err != nil {
-		if err == sql.ErrNoRows {
-			return nil, fmt.Errorf("reference image not found")
-		}
-		return nil, fmt.Errorf("failed to check reference image existence: %w", err)
+		return nil, fmt.Errorf("failed to check reference image existence: %v", err)
+	}
+	if !exists {
+		return nil, fmt.Errorf("reference image not found: %s", referenceImageID)
 	}
 
-	// Create new search job
-	job := &models.SearchJob{
-		ID:               uuid.New().String(),
-		ReferenceImageID: request.ReferenceImageID,
-		Status:           models.JobStatusPending,
-		Progress:         0,
-		CreatedAt:        time.Now(),
-	}
+	// Create search job
+	jobID := uuid.New().String()
+	now := time.Now()
 
-	query = `INSERT INTO search_jobs (id, reference_image_id, status, progress, created_at) 
-			 VALUES (?, ?, ?, ?, ?)`
-	_, err = s.db.Exec(query, job.ID, job.ReferenceImageID, job.Status, job.Progress, job.CreatedAt)
+	_, err = s.db.Exec(`
+		INSERT INTO search_jobs (id, reference_image_id, status, progress, started_at)
+		VALUES (?, ?, ?, ?, ?)
+	`, jobID, referenceImageID, models.JobStatusPending, 0, now)
+
 	if err != nil {
-		return nil, fmt.Errorf("failed to create search job: %w", err)
+		return nil, fmt.Errorf("failed to create search job: %v", err)
 	}
 
 	// Start search in background
-	go s.runSearch(job.ID, request.VideoIDs)
+	go s.runSearch(jobID, referenceImageID)
 
-	return job, nil
+	return &models.SearchJob{
+		ID:               jobID,
+		ReferenceImageID: referenceImageID,
+		Status:           models.JobStatusPending,
+		Progress:         0,
+		StartedAt:        now,
+	}, nil
 }
 
-// GetSearchStatus retrieves the status of a search job
-func (s *FinderService) GetSearchStatus(searchID string) (*models.SearchJob, error) {
-	query := `SELECT id, reference_image_id, status, progress, error_message, started_at, completed_at, created_at 
-			  FROM search_jobs WHERE id = ?`
-
+// GetSearchStatus gets the status of a search job
+func (s *FinderService) GetSearchStatus(jobID string) (*models.SearchJob, error) {
 	var job models.SearchJob
-	err := s.db.QueryRow(query, searchID).Scan(
-		&job.ID, &job.ReferenceImageID, &job.Status, &job.Progress,
-		&job.ErrorMessage, &job.StartedAt, &job.CompletedAt, &job.CreatedAt,
-	)
+	var completedAt sql.NullTime
+	var errorMsg sql.NullString
+
+	err := s.db.QueryRow(`
+		SELECT id, reference_image_id, status, progress, started_at, completed_at, error
+		FROM search_jobs WHERE id = ?
+	`, jobID).Scan(&job.ID, &job.ReferenceImageID, &job.Status, &job.Progress, &job.StartedAt, &completedAt, &errorMsg)
+
 	if err != nil {
-		if err == sql.ErrNoRows {
-			return nil, fmt.Errorf("search job not found")
-		}
-		return nil, fmt.Errorf("failed to get search job: %w", err)
+		return nil, fmt.Errorf("search job not found: %v", err)
+	}
+
+	if completedAt.Valid {
+		job.CompletedAt = &completedAt.Time
+	}
+	if errorMsg.Valid {
+		job.Error = &errorMsg.String
 	}
 
 	return &job, nil
 }
 
-// GetSearchResults retrieves the results of a completed search
-func (s *FinderService) GetSearchResults(searchID string) ([]models.SearchResult, error) {
-	query := `SELECT id, search_job_id, video_id, reference_image_id, matches, first_appearance, 
-			  last_appearance, total_appearances, confidence, created_at
-			  FROM search_results WHERE search_job_id = ?`
+// GetSearchResults gets the results of a completed search
+func (s *FinderService) GetSearchResults(jobID string) (*models.SearchResult, error) {
+	var result models.SearchResult
 
-	rows, err := s.db.Query(query, searchID)
+	err := s.db.QueryRow(`
+		SELECT id, search_job_id, video_id, created_at
+		FROM search_results WHERE search_job_id = ? ORDER BY created_at DESC LIMIT 1
+	`, jobID).Scan(&result.ID, &result.SearchJobID, &result.VideoID, &result.CreatedAt)
+
 	if err != nil {
-		return nil, fmt.Errorf("failed to query search results: %w", err)
+		return nil, fmt.Errorf("search results not found: %v", err)
+	}
+
+	// Get matches for this search result
+	rows, err := s.db.Query(`
+		SELECT person_id, first_frame, last_frame, first_time, last_time, confidence, x, y, width, height
+		FROM search_matches WHERE search_result_id = ? ORDER BY first_time
+	`, result.ID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get search matches: %v", err)
 	}
 	defer rows.Close()
 
-	var results []models.SearchResult
 	for rows.Next() {
-		var result models.SearchResult
-		err := rows.Scan(
-			&result.ID, &result.SearchJobID, &result.VideoID, &result.ReferenceImageID,
-			&result.Matches, &result.FirstAppearance, &result.LastAppearance,
-			&result.TotalAppearances, &result.Confidence, &result.CreatedAt,
-		)
+		var match models.Match
+		err := rows.Scan(&match.PersonID, &match.FirstFrame, &match.LastFrame, &match.FirstTime, &match.LastTime, &match.Confidence, &match.BoundingBox.X, &match.BoundingBox.Y, &match.BoundingBox.Width, &match.BoundingBox.Height)
 		if err != nil {
-			return nil, fmt.Errorf("failed to scan search result: %w", err)
+			return nil, fmt.Errorf("failed to scan search match: %v", err)
 		}
-		results = append(results, result)
+		result.Matches = append(result.Matches, match)
 	}
 
-	return results, nil
+	return &result, nil
 }
 
-// runSearch runs the actual person search (placeholder implementation)
-func (s *FinderService) runSearch(searchID string, videoIDs []string) {
-	// Update job status to running
-	s.updateSearchJobStatus(searchID, models.JobStatusRunning, 0, nil)
-
-	// Get all videos if none specified
-	if len(videoIDs) == 0 {
-		query := `SELECT id FROM videos WHERE status = ?`
-		rows, err := s.db.Query(query, models.VideoStatusAnalyzed)
-		if err != nil {
-			s.log.Error("Failed to get videos for search", zap.String("search_id", searchID), zap.Error(err))
-			errorMsg := err.Error()
-			s.updateSearchJobStatus(searchID, models.JobStatusFailed, 0, &errorMsg)
-			return
-		}
-		defer rows.Close()
-
-		for rows.Next() {
-			var videoID string
-			if err := rows.Scan(&videoID); err != nil {
-				s.log.Error("Failed to scan video ID", zap.Error(err))
-				continue
-			}
-			videoIDs = append(videoIDs, videoID)
-		}
-	}
-
-	// TODO: Implement actual person search
-	// This would typically involve:
-	// 1. Loading the reference image
-	// 2. For each video, loading frames and running face detection
-	// 3. Comparing detected faces with the reference image
-	// 4. Storing matches with timestamps and confidence scores
-
-	// Simulate search progress
-	totalVideos := len(videoIDs)
-	for i, videoID := range videoIDs {
-		progress := (i + 1) * 100 / totalVideos
-		s.updateSearchJobProgress(searchID, progress)
-
-		// Create mock results for each video
-		s.createMockSearchResults(searchID, videoID)
-
-		time.Sleep(200 * time.Millisecond) // Simulate processing time
-	}
-
-	// Update job status to completed
-	s.updateSearchJobStatus(searchID, models.JobStatusCompleted, 100, nil)
-}
-
-// updateSearchJobStatus updates the status of a search job
-func (s *FinderService) updateSearchJobStatus(searchID, status string, progress int, errorMessage *string) {
-	var query string
-	var args []interface{}
-
-	if status == models.JobStatusRunning {
-		query = `UPDATE search_jobs SET status = ?, progress = ?, started_at = ? WHERE id = ?`
-		args = []interface{}{status, progress, time.Now(), searchID}
-	} else if status == models.JobStatusCompleted {
-		query = `UPDATE search_jobs SET status = ?, progress = ?, completed_at = ? WHERE id = ?`
-		args = []interface{}{status, progress, time.Now(), searchID}
-	} else if status == models.JobStatusFailed {
-		query = `UPDATE search_jobs SET status = ?, progress = ?, error_message = ?, completed_at = ? WHERE id = ?`
-		args = []interface{}{status, progress, errorMessage, time.Now(), searchID}
-	} else {
-		query = `UPDATE search_jobs SET status = ?, progress = ? WHERE id = ?`
-		args = []interface{}{status, progress, searchID}
-	}
-
-	_, err := s.db.Exec(query, args...)
-	if err != nil {
-		s.log.Error("Failed to update search job status", zap.String("search_id", searchID), zap.Error(err))
-	}
-}
-
-// updateSearchJobProgress updates the progress of a search job
-func (s *FinderService) updateSearchJobProgress(searchID string, progress int) {
-	query := `UPDATE search_jobs SET progress = ? WHERE id = ?`
-	_, err := s.db.Exec(query, progress, searchID)
-	if err != nil {
-		s.log.Error("Failed to update search job progress", zap.String("search_id", searchID), zap.Error(err))
-	}
-}
-
-// createMockSearchResults creates mock search results for demonstration
-func (s *FinderService) createMockSearchResults(searchID, videoID string) {
-	// Get reference image ID from search job
-	var referenceImageID string
-	query := `SELECT reference_image_id FROM search_jobs WHERE id = ?`
-	err := s.db.QueryRow(query, searchID).Scan(&referenceImageID)
-	if err != nil {
-		s.log.Error("Failed to get reference image ID for search", zap.String("search_id", searchID), zap.Error(err))
-		return
-	}
-
-	// Create mock matches
-	matches := []models.Match{
-		{
-			FrameNumber: 10,
-			Timestamp:   10.0,
-			BoundingBox: models.BoundingBox{X: 150, Y: 200, Width: 90, Height: 220},
-			Confidence:  0.92,
-		},
-		{
-			FrameNumber: 25,
-			Timestamp:   25.0,
-			BoundingBox: models.BoundingBox{X: 300, Y: 180, Width: 85, Height: 210},
-			Confidence:  0.88,
-		},
-		{
-			FrameNumber: 40,
-			Timestamp:   40.0,
-			BoundingBox: models.BoundingBox{X: 200, Y: 250, Width: 95, Height: 230},
-			Confidence:  0.95,
-		},
-	}
-
-	matchesJSON, _ := json.Marshal(matches)
-
-	// Create search result
-	result := &models.SearchResult{
-		ID:               uuid.New().String(),
-		SearchJobID:      searchID,
-		VideoID:          videoID,
-		ReferenceImageID: referenceImageID,
-		Matches:          matchesJSON,
-		FirstAppearance:  10.0,
-		LastAppearance:   40.0,
-		TotalAppearances: 3,
-		Confidence:       0.92,
-		CreatedAt:        time.Now(),
-	}
-
-	query = `INSERT INTO search_results (id, search_job_id, video_id, reference_image_id, matches, 
-			 first_appearance, last_appearance, total_appearances, confidence, created_at) 
-			 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-
-	_, err = s.db.Exec(query, result.ID, result.SearchJobID, result.VideoID, result.ReferenceImageID,
-		result.Matches, result.FirstAppearance, result.LastAppearance, result.TotalAppearances,
-		result.Confidence, result.CreatedAt)
-	if err != nil {
-		s.log.Error("Failed to create search results", zap.String("search_id", searchID), zap.Error(err))
-	}
-}
-
-// isValidImageType checks if the file type is a valid image
+// isValidImageType checks if the file is a valid image type
 func (s *FinderService) isValidImageType(filename string) bool {
-	ext := strings.ToLower(filepath.Ext(filename))
-	validTypes := []string{".jpg", ".jpeg", ".png", ".bmp", ".gif", ".tiff", ".webp"}
-	for _, validType := range validTypes {
-		if ext == validType {
+	ext := filepath.Ext(filename)
+	validExtensions := []string{".jpg", ".jpeg", ".png", ".gif", ".bmp", ".tiff", ".webp"}
+
+	for _, validExt := range validExtensions {
+		if ext == validExt {
 			return true
 		}
 	}
 	return false
+}
+
+// saveUploadedFile saves an uploaded file to the specified path
+func (s *FinderService) saveUploadedFile(file *multipart.FileHeader, filePath string) error {
+	src, err := file.Open()
+	if err != nil {
+		return err
+	}
+	defer src.Close()
+
+	dst, err := os.Create(filePath)
+	if err != nil {
+		return err
+	}
+	defer dst.Close()
+
+	// Copy file content
+	_, err = dst.ReadFrom(src)
+	return err
+}
+
+// runSearch simulates the search process
+func (s *FinderService) runSearch(jobID, referenceImageID string) {
+	// Update job status to running
+	_, err := s.db.Exec("UPDATE search_jobs SET status = ?, progress = ? WHERE id = ?", models.JobStatusRunning, 10, jobID)
+	if err != nil {
+		return
+	}
+
+	// Simulate search progress
+	for progress := 20; progress <= 90; progress += 10 {
+		time.Sleep(500 * time.Millisecond)
+		_, err := s.db.Exec("UPDATE search_jobs SET progress = ? WHERE id = ?", progress, jobID)
+		if err != nil {
+			return
+		}
+	}
+
+	// Create mock search results
+	err = s.createMockSearchResults(jobID, referenceImageID)
+	if err != nil {
+		errorMsg := err.Error()
+		_, err = s.db.Exec("UPDATE search_jobs SET status = ?, error = ?, completed_at = ? WHERE id = ?", models.JobStatusFailed, errorMsg, time.Now(), jobID)
+		return
+	}
+
+	// Update job status to completed
+	_, err = s.db.Exec("UPDATE search_jobs SET status = ?, progress = ?, completed_at = ? WHERE id = ?", models.JobStatusCompleted, 100, time.Now(), jobID)
+}
+
+// createMockSearchResults creates mock search results
+func (s *FinderService) createMockSearchResults(jobID, referenceImageID string) error {
+	// Get a video ID for mock results
+	var videoID string
+	err := s.db.QueryRow("SELECT id FROM videos LIMIT 1").Scan(&videoID)
+	if err != nil {
+		return fmt.Errorf("no videos available for search: %v", err)
+	}
+
+	// Create search result
+	resultID := uuid.New().String()
+	now := time.Now()
+
+	_, err = s.db.Exec(`
+		INSERT INTO search_results (id, search_job_id, video_id, created_at)
+		VALUES (?, ?, ?, ?)
+	`, resultID, jobID, videoID, now)
+
+	if err != nil {
+		return fmt.Errorf("failed to create search result: %v", err)
+	}
+
+	// Create mock matches
+	matches := []struct {
+		personID   string
+		firstTime  float64
+		lastTime   float64
+		confidence float64
+	}{
+		{"person_1", 10.5, 25.3, 0.85},
+		{"person_2", 45.2, 67.8, 0.92},
+		{"person_3", 120.1, 145.6, 0.78},
+	}
+
+	for _, match := range matches {
+		_, err := s.db.Exec(`
+			INSERT INTO search_matches (id, search_result_id, person_id, first_frame, last_frame, first_time, last_time, confidence, x, y, width, height)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		`, uuid.New().String(), resultID, match.personID, int(match.firstTime*30), int(match.lastTime*30), match.firstTime, match.lastTime, match.confidence, 0.1, 0.2, 0.3, 0.4)
+
+		if err != nil {
+			return fmt.Errorf("failed to create search match: %v", err)
+		}
+	}
+
+	return nil
 }

@@ -26,7 +26,7 @@ func NewAnalysisHandler(analysisService *services.AnalysisService, log *zap.Logg
 
 // StartAnalysis godoc
 // @Summary Start video analysis
-// @Description Start analyzing a video for person detection and tracking
+// @Description Start analysis for a specific video
 // @Tags analysis
 // @Accept json
 // @Produce json
@@ -34,17 +34,16 @@ func NewAnalysisHandler(analysisService *services.AnalysisService, log *zap.Logg
 // @Success 200 {object} models.AnalysisStatusResponse
 // @Failure 400 {object} models.ErrorResponse
 // @Failure 404 {object} models.ErrorResponse
-// @Failure 409 {object} models.ErrorResponse
 // @Failure 500 {object} models.ErrorResponse
 // @Router /analysis/{videoId}/start [post]
 func (h *AnalysisHandler) StartAnalysis(c *gin.Context) {
 	videoID := c.Param("videoId")
 	if videoID == "" {
+		h.log.Error("Missing video ID parameter")
 		c.JSON(http.StatusBadRequest, models.ErrorResponse{
-			Success:   false,
-			Error:     "invalid_video_id",
-			Message:   "Video ID is required",
-			RequestID: c.GetString("request_id"),
+			Success: false,
+			Error:   "missing_video_id",
+			Message: "Video ID is required",
 		})
 		return
 	}
@@ -52,29 +51,11 @@ func (h *AnalysisHandler) StartAnalysis(c *gin.Context) {
 	job, err := h.analysisService.StartAnalysis(videoID)
 	if err != nil {
 		h.log.Error("Failed to start analysis", zap.String("video_id", videoID), zap.Error(err))
-
-		if err.Error() == "video not found" {
-			c.JSON(http.StatusNotFound, models.ErrorResponse{
-				Success:   false,
-				Error:     "not_found",
-				Message:   "Video not found",
-				RequestID: c.GetString("request_id"),
-			})
-		} else if err.Error() == "analysis job already exists for this video" {
-			c.JSON(http.StatusConflict, models.ErrorResponse{
-				Success:   false,
-				Error:     "job_exists",
-				Message:   "Analysis job already exists for this video",
-				RequestID: c.GetString("request_id"),
-			})
-		} else {
-			c.JSON(http.StatusInternalServerError, models.ErrorResponse{
-				Success:   false,
-				Error:     "start_failed",
-				Message:   "Failed to start analysis",
-				RequestID: c.GetString("request_id"),
-			})
-		}
+		c.JSON(http.StatusInternalServerError, models.ErrorResponse{
+			Success: false,
+			Error:   "analysis_start_failed",
+			Message: err.Error(),
+		})
 		return
 	}
 
@@ -86,7 +67,7 @@ func (h *AnalysisHandler) StartAnalysis(c *gin.Context) {
 
 // GetAnalysisStatus godoc
 // @Summary Get analysis status
-// @Description Get the current status of a video analysis job
+// @Description Get the status of analysis for a specific video
 // @Tags analysis
 // @Produce json
 // @Param videoId path string true "Video ID"
@@ -98,36 +79,23 @@ func (h *AnalysisHandler) StartAnalysis(c *gin.Context) {
 func (h *AnalysisHandler) GetAnalysisStatus(c *gin.Context) {
 	videoID := c.Param("videoId")
 	if videoID == "" {
+		h.log.Error("Missing video ID parameter")
 		c.JSON(http.StatusBadRequest, models.ErrorResponse{
-			Success:   false,
-			Error:     "invalid_video_id",
-			Message:   "Video ID is required",
-			RequestID: c.GetString("request_id"),
+			Success: false,
+			Error:   "missing_video_id",
+			Message: "Video ID is required",
 		})
 		return
 	}
 
-	// Get the latest analysis job for this video
-	// Note: This is a simplified implementation. In a real scenario, you might want to
-	// get the job ID from the URL or query parameters
 	job, err := h.analysisService.GetAnalysisStatus(videoID)
 	if err != nil {
 		h.log.Error("Failed to get analysis status", zap.String("video_id", videoID), zap.Error(err))
-		if err.Error() == "analysis job not found" {
-			c.JSON(http.StatusNotFound, models.ErrorResponse{
-				Success:   false,
-				Error:     "not_found",
-				Message:   "Analysis job not found",
-				RequestID: c.GetString("request_id"),
-			})
-		} else {
-			c.JSON(http.StatusInternalServerError, models.ErrorResponse{
-				Success:   false,
-				Error:     "status_failed",
-				Message:   "Failed to get analysis status",
-				RequestID: c.GetString("request_id"),
-			})
-		}
+		c.JSON(http.StatusNotFound, models.ErrorResponse{
+			Success: false,
+			Error:   "analysis_job_not_found",
+			Message: err.Error(),
+		})
 		return
 	}
 
@@ -139,7 +107,7 @@ func (h *AnalysisHandler) GetAnalysisStatus(c *gin.Context) {
 
 // GetAnalysisResults godoc
 // @Summary Get analysis results
-// @Description Get the results of a completed video analysis
+// @Description Get the analysis results for a specific video
 // @Tags analysis
 // @Produce json
 // @Param videoId path string true "Video ID"
@@ -151,11 +119,11 @@ func (h *AnalysisHandler) GetAnalysisStatus(c *gin.Context) {
 func (h *AnalysisHandler) GetAnalysisResults(c *gin.Context) {
 	videoID := c.Param("videoId")
 	if videoID == "" {
+		h.log.Error("Missing video ID parameter")
 		c.JSON(http.StatusBadRequest, models.ErrorResponse{
-			Success:   false,
-			Error:     "invalid_video_id",
-			Message:   "Video ID is required",
-			RequestID: c.GetString("request_id"),
+			Success: false,
+			Error:   "missing_video_id",
+			Message: "Video ID is required",
 		})
 		return
 	}
@@ -163,25 +131,55 @@ func (h *AnalysisHandler) GetAnalysisResults(c *gin.Context) {
 	results, err := h.analysisService.GetAnalysisResults(videoID)
 	if err != nil {
 		h.log.Error("Failed to get analysis results", zap.String("video_id", videoID), zap.Error(err))
-		if err.Error() == "analysis results not found" {
-			c.JSON(http.StatusNotFound, models.ErrorResponse{
-				Success:   false,
-				Error:     "not_found",
-				Message:   "Analysis results not found",
-				RequestID: c.GetString("request_id"),
-			})
-		} else {
-			c.JSON(http.StatusInternalServerError, models.ErrorResponse{
-				Success:   false,
-				Error:     "results_failed",
-				Message:   "Failed to get analysis results",
-				RequestID: c.GetString("request_id"),
-			})
-		}
+		c.JSON(http.StatusNotFound, models.ErrorResponse{
+			Success: false,
+			Error:   "analysis_results_not_found",
+			Message: err.Error(),
+		})
 		return
 	}
 
 	c.JSON(http.StatusOK, models.AnalysisResultsResponse{
+		Success: true,
+		Results: *results,
+	})
+}
+
+// GetEnhancedAnalysisResults godoc
+// @Summary Get enhanced analysis results
+// @Description Get enhanced analysis results with person and face data for a specific video
+// @Tags analysis
+// @Produce json
+// @Param videoId path string true "Video ID"
+// @Success 200 {object} models.EnhancedAnalysisResultsResponse
+// @Failure 400 {object} models.ErrorResponse
+// @Failure 404 {object} models.ErrorResponse
+// @Failure 500 {object} models.ErrorResponse
+// @Router /analysis/{videoId}/enhanced-results [get]
+func (h *AnalysisHandler) GetEnhancedAnalysisResults(c *gin.Context) {
+	videoID := c.Param("videoId")
+	if videoID == "" {
+		h.log.Error("Missing video ID parameter")
+		c.JSON(http.StatusBadRequest, models.ErrorResponse{
+			Success: false,
+			Error:   "missing_video_id",
+			Message: "Video ID is required",
+		})
+		return
+	}
+
+	results, err := h.analysisService.GetEnhancedAnalysisResults(videoID)
+	if err != nil {
+		h.log.Error("Failed to get enhanced analysis results", zap.String("video_id", videoID), zap.Error(err))
+		c.JSON(http.StatusNotFound, models.ErrorResponse{
+			Success: false,
+			Error:   "enhanced_analysis_results_not_found",
+			Message: err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, models.EnhancedAnalysisResultsResponse{
 		Success: true,
 		Results: *results,
 	})
@@ -194,28 +192,28 @@ func (h *AnalysisHandler) GetAnalysisResults(c *gin.Context) {
 // @Accept json
 // @Produce json
 // @Param request body []string true "Array of video IDs"
-// @Success 200 {object} map[string]interface{}
+// @Success 200 {array} models.AnalysisJob
 // @Failure 400 {object} models.ErrorResponse
 // @Failure 500 {object} models.ErrorResponse
 // @Router /analysis/batch [post]
 func (h *AnalysisHandler) StartBatchAnalysis(c *gin.Context) {
 	var videoIDs []string
 	if err := c.ShouldBindJSON(&videoIDs); err != nil {
+		h.log.Error("Failed to bind request body", zap.Error(err))
 		c.JSON(http.StatusBadRequest, models.ErrorResponse{
-			Success:   false,
-			Error:     "invalid_request",
-			Message:   "Invalid request body",
-			RequestID: c.GetString("request_id"),
+			Success: false,
+			Error:   "invalid_request_body",
+			Message: "Invalid request body",
 		})
 		return
 	}
 
 	if len(videoIDs) == 0 {
+		h.log.Error("Empty video IDs array")
 		c.JSON(http.StatusBadRequest, models.ErrorResponse{
-			Success:   false,
-			Error:     "empty_list",
-			Message:   "Video IDs list cannot be empty",
-			RequestID: c.GetString("request_id"),
+			Success: false,
+			Error:   "empty_video_ids",
+			Message: "At least one video ID is required",
 		})
 		return
 	}
@@ -224,68 +222,21 @@ func (h *AnalysisHandler) StartBatchAnalysis(c *gin.Context) {
 	if err != nil {
 		h.log.Error("Failed to start batch analysis", zap.Error(err))
 		c.JSON(http.StatusInternalServerError, models.ErrorResponse{
-			Success:   false,
-			Error:     "batch_failed",
-			Message:   "Failed to start batch analysis",
-			RequestID: c.GetString("request_id"),
+			Success: false,
+			Error:   "batch_analysis_failed",
+			Message: err.Error(),
 		})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"message": "Batch analysis started",
-		"jobs":    jobs,
-		"total":   len(jobs),
-	})
-}
-
-// GetEnhancedAnalysisResults godoc
-// @Summary Get enhanced analysis results with faces
-// @Description Get detailed analysis results including detected persons and their faces
-// @Tags analysis
-// @Produce json
-// @Param videoId path string true "Video ID"
-// @Success 200 {object} map[string]interface{}
-// @Failure 400 {object} models.ErrorResponse
-// @Failure 404 {object} models.ErrorResponse
-// @Failure 500 {object} models.ErrorResponse
-// @Router /analysis/{videoId}/enhanced-results [get]
-func (h *AnalysisHandler) GetEnhancedAnalysisResults(c *gin.Context) {
-	videoID := c.Param("videoId")
-	if videoID == "" {
-		c.JSON(http.StatusBadRequest, models.ErrorResponse{
-			Success:   false,
-			Error:     "invalid_video_id",
-			Message:   "Video ID is required",
-			RequestID: c.GetString("request_id"),
-		})
-		return
-	}
-
-	results, err := h.analysisService.GetEnhancedAnalysisResults(videoID)
-	if err != nil {
-		h.log.Error("Failed to get enhanced analysis results", zap.String("video_id", videoID), zap.Error(err))
-		if err.Error() == "analysis results not found" {
-			c.JSON(http.StatusNotFound, models.ErrorResponse{
-				Success:   false,
-				Error:     "not_found",
-				Message:   "Analysis results not found",
-				RequestID: c.GetString("request_id"),
-			})
-		} else {
-			c.JSON(http.StatusInternalServerError, models.ErrorResponse{
-				Success:   false,
-				Error:     "results_failed",
-				Message:   "Failed to get enhanced analysis results",
-				RequestID: c.GetString("request_id"),
-			})
-		}
-		return
+	// Convert to array of AnalysisJob
+	var jobArray []models.AnalysisJob
+	for _, job := range jobs {
+		jobArray = append(jobArray, *job)
 	}
 
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
-		"results": results,
+		"jobs":    jobArray,
 	})
 }

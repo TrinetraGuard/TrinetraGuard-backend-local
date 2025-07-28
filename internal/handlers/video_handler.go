@@ -258,6 +258,16 @@ func (h *VideoHandler) DownloadVideo(c *gin.Context) {
 		return
 	}
 
-	filePath := h.videoService.GetVideoFilePath(video.Filename)
-	c.FileAttachment(filePath, video.OriginalFilename)
+	filePath, err := h.videoService.GetVideoFilePath(video.ID)
+	if err != nil {
+		h.log.Error("Failed to get video file path", zap.String("video_id", videoID), zap.Error(err))
+		c.JSON(http.StatusInternalServerError, models.ErrorResponse{
+			Success:   false,
+			Error:     "download_failed",
+			Message:   "Failed to retrieve video file path",
+			RequestID: c.GetString("request_id"),
+		})
+		return
+	}
+	c.FileAttachment(filePath, video.OriginalName)
 }
