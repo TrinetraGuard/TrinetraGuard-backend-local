@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Video Storage Management</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+            color: white;
+        }
+
+        .header h1 {
+            font-size: 3rem;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .nav-buttons {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .nav-btn {
+            background: rgba(255,255,255,0.2);
+            color: white;
+            border: 2px solid white;
+            padding: 12px 24px;
+            border-radius: 25px;
+            text-decoration: none;
+            margin: 0 10px;
+            transition: all 0.3s ease;
+            display: inline-block;
+        }
+
+        .nav-btn:hover {
+            background: white;
+            color: #667eea;
+        }
+
+        .stats-section {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 15px;
+            text-align: center;
+        }
+
+        .stat-number {
+            font-size: 2rem;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .stat-label {
+            font-size: 0.9rem;
+            opacity: 0.9;
+        }
+
+        .videos-section {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+        }
+
+        .video-card {
+            background: #f8f9ff;
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+            border-left: 5px solid #667eea;
+            transition: transform 0.3s ease;
+        }
+
+        .video-card:hover {
+            transform: translateY(-2px);
+        }
+
+        .video-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .video-title {
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .video-status {
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: bold;
+        }
+
+        .status-completed {
+            background: #4CAF50;
+            color: white;
+        }
+
+        .status-processing {
+            background: #FF9800;
+            color: white;
+        }
+
+        .status-failed {
+            background: #f44336;
+            color: white;
+        }
+
+        .video-details {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+
+        .detail-item {
+            text-align: center;
+        }
+
+        .detail-label {
+            font-size: 0.8rem;
+            color: #666;
+            margin-bottom: 5px;
+        }
+
+        .detail-value {
+            font-weight: bold;
+            color: #333;
+        }
+
+        .faces-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .face-thumbnail {
+            width: 100%;
+            height: 100px;
+            object-fit: cover;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: transform 0.3s ease;
+        }
+
+        .face-thumbnail:hover {
+            transform: scale(1.05);
+        }
+
+        .video-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .action-btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+        }
+
+        .btn-view {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-delete {
+            background: #f44336;
+            color: white;
+        }
+
+        .btn-view:hover, .btn-delete:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #666;
+        }
+
+        .empty-state h3 {
+            margin-bottom: 10px;
+            color: #667eea;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+
+        .loading-spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 10px;
+            }
+            
+            .header h1 {
+                font-size: 2rem;
+            }
+            
+            .video-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 10px;
+            }
+            
+            .faces-grid {
+                grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📹 Video Storage</h1>
+            <p>Manage your processed videos and view results</p>
+        </div>
+
+        <div class="nav-buttons">
+            <a href="/" class="nav-btn">🏠 Home</a>
+            <a href="/storage.html" class="nav-btn">📁 Storage</a>
+        </div>
+
+        <div class="stats-section">
+            <h2>📊 Statistics</h2>
+            <div class="stats-grid" id="statsGrid">
+                <div class="loading">
+                    <span class="loading-spinner"></span>
+                    Loading statistics...
+                </div>
+            </div>
+        </div>
+
+        <div class="videos-section">
+            <h2>🎬 Stored Videos</h2>
+            <div id="videosList">
+                <div class="loading">
+                    <span class="loading-spinner"></span>
+                    Loading videos...
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE_URL = 'http://localhost:8080/api';
+        
+        // Load statistics
+        async function loadStats() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/videos/stats`);
+                const data = await response.json();
+                
+                document.getElementById('statsGrid').innerHTML = `
+                    <div class="stat-card">
+                        <div class="stat-number">${data.total_videos || 0}</div>
+                        <div class="stat-label">Total Videos</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number">${data.completed_videos || 0}</div>
+                        <div class="stat-label">Completed</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number">${data.failed_videos || 0}</div>
+                        <div class="stat-label">Failed</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number">${data.total_faces_detected || 0}</div>
+                        <div class="stat-label">Faces Detected</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number">${(data.avg_processing_time || 0).toFixed(1)}s</div>
+                        <div class="stat-label">Avg Processing Time</div>
+                    </div>
+                `;
+            } catch (error) {
+                console.error('Error loading stats:', error);
+                document.getElementById('statsGrid').innerHTML = '<p>Error loading statistics</p>';
+            }
+        }
+
+        // Load videos
+        async function loadVideos() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/videos`);
+                const data = await response.json();
+                
+                if (data.videos && data.videos.length > 0) {
+                    const videosHTML = data.videos.map(video => createVideoCard(video)).join('');
+                    document.getElementById('videosList').innerHTML = videosHTML;
+                } else {
+                    document.getElementById('videosList').innerHTML = `
+                        <div class="empty-state">
+                            <h3>No videos found</h3>
+                            <p>Upload a video to get started!</p>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                console.error('Error loading videos:', error);
+                document.getElementById('videosList').innerHTML = '<p>Error loading videos</p>';
+            }
+        }
+
+        // Create video card HTML
+        function createVideoCard(video) {
+            const uploadDate = new Date(video.upload_time).toLocaleString();
+            const statusClass = `status-${video.status}`;
+            
+            let facesHTML = '';
+            if (video.face_images && video.face_images.length > 0) {
+                facesHTML = `
+                    <div class="faces-grid">
+                        ${video.face_images.map(face => `
+                            <img src="http://localhost:8080/${face}" 
+                                 alt="Face" 
+                                 class="face-thumbnail"
+                                 onclick="openFaceImage('${face}')">
+                        `).join('')}
+                    </div>
+                `;
+            }
+
+            return `
+                <div class="video-card">
+                    <div class="video-header">
+                        <div class="video-title">${video.original_filename}</div>
+                        <div class="video-status ${statusClass}">${video.status.toUpperCase()}</div>
+                    </div>
+                    
+                    <div class="video-details">
+                        <div class="detail-item">
+                            <div class="detail-label">Upload Date</div>
+                            <div class="detail-value">${uploadDate}</div>
+                        </div>
+                        <div class="detail-item">
+                            <div class="detail-label">Processing Time</div>
+                            <div class="detail-value">${(video.processing_time_seconds || 0).toFixed(1)}s</div>
+                        </div>
+                        <div class="detail-item">
+                            <div class="detail-label">Faces Detected</div>
+                            <div class="detail-value">${video.unique_faces_count || 0}</div>
+                        </div>
+                        <div class="detail-item">
+                            <div class="detail-label">Video ID</div>
+                            <div class="detail-value">${video.id}</div>
+                        </div>
+                    </div>
+                    
+                    ${facesHTML}
+                    
+                    <div class="video-actions">
+                        <button class="action-btn btn-view" onclick="viewVideo('${video.id}')">View Details</button>
+                        <button class="action-btn btn-delete" onclick="deleteVideo('${video.id}')">Delete</button>
+                    </div>
+                </div>
+            `;
+        }
+
+        // View video details
+        async function viewVideo(id) {
+            try {
+                const response = await fetch(`${API_BASE_URL}/videos/${id}`);
+                const video = await response.json();
+                
+                alert(`Video Details:\n\n` +
+                      `ID: ${video.id}\n` +
+                      `Filename: ${video.original_filename}\n` +
+                      `Status: ${video.status}\n` +
+                      `Faces Detected: ${video.unique_faces_count}\n` +
+                      `Processing Time: ${video.processing_time_seconds}s\n` +
+                      `Upload Date: ${new Date(video.upload_time).toLocaleString()}`);
+            } catch (error) {
+                alert('Error loading video details');
+            }
+        }
+
+        // Delete video
+        async function deleteVideo(id) {
+            if (!confirm('Are you sure you want to delete this video? This action cannot be undone.')) {
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}/videos/${id}`, {
+                    method: 'DELETE'
+                });
+                
+                if (response.ok) {
+                    alert('Video deleted successfully');
+                    loadVideos();
+                    loadStats();
+                } else {
+                    alert('Error deleting video');
+                }
+            } catch (error) {
+                alert('Error deleting video');
+            }
+        }
+
+        // Open face image in new window
+        function openFaceImage(facePath) {
+            window.open(`http://localhost:8080/${facePath}`, '_blank');
+        }
+
+        // Load data on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            loadStats();
+            loadVideos();
+        });
+
+        // Refresh data every 30 seconds
+        setInterval(() => {
+            loadStats();
+            loadVideos();
+        }, 30000);
+    </script>
+</body>
+</html> 
