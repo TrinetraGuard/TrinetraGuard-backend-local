@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -15,10 +16,16 @@ import (
 
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
+	"github.com/gorilla/websocket"
 	_ "github.com/mattn/go-sqlite3"
 )
 
 var db *sql.DB
+var upgrader = websocket.Upgrader{
+	CheckOrigin: func(r *http.Request) bool {
+		return true
+	},
+}
 
 type Video struct {
 	ID          int    `json:"id"`
@@ -34,6 +41,13 @@ type Face struct {
 	ImagePath  string   `json:"image_path"`
 	Timestamps []string `json:"timestamps"`
 	Name       string   `json:"name"`
+}
+
+type ProcessingLog struct {
+	Type    string `json:"type"` // "info", "progress", "error", "success"
+	Message string `json:"message"`
+	Time    string `json:"time"`
+	VideoID int    `json:"video_id"`
 }
 
 func initDB() {
@@ -221,23 +235,122 @@ func analyzeVideo(videoID int, videoPath string) {
 	// Set the Python path to use the virtual environment
 	cmd.Env = append(os.Environ(), "PATH="+absPythonDir+"/venv/bin:"+os.Getenv("PATH"))
 
-	output, err := cmd.Output()
+	// Capture stdout and stderr for real-time processing
+	stdout, err := cmd.StdoutPipe()
 	if err != nil {
+		log.Printf("Error creating stdout pipe: %v", err)
+		return
+	}
+
+	stderr, err := cmd.StderrPipe()
+	if err != nil {
+		log.Printf("Error creating stderr pipe: %v", err)
+		return
+	}
+
+	// Start the command
+	if err := cmd.Start(); err != nil {
+		log.Printf("Error starting Python analysis: %v", err)
+		return
+	}
+
+	// Read output in real-time and collect the final JSON
+	var outputLines []string
+	var outputDone = make(chan bool)
+	var errorDone = make(chan bool)
+
+	go func() {
+		scanner := bufio.NewScanner(stdout)
+		for scanner.Scan() {
+			line := scanner.Text()
+			outputLines = append(outputLines, line)
+			log.Printf("Python output: %s", line)
+
+			// Parse progress information
+			if strings.Contains(line, "Progress:") {
+				// Extract progress percentage
+				if strings.Contains(line, "Found") {
+					parts := strings.Split(line, "Found")
+					if len(parts) > 1 {
+						progressInfo := strings.TrimSpace(parts[1])
+						log.Printf("Progress update for video %d: %s", videoID, progressInfo)
+					}
+				}
+			}
+		}
+		outputDone <- true
+	}()
+
+	// Read error output
+	go func() {
+		scanner := bufio.NewScanner(stderr)
+		for scanner.Scan() {
+			line := scanner.Text()
+			log.Printf("Python error: %s", line)
+		}
+		errorDone <- true
+	}()
+
+	// Wait for command to complete
+	if err := cmd.Wait(); err != nil {
 		log.Printf("Python analysis failed: %v", err)
-		log.Printf("Command was: python3 analyze_video_clean.py %s %s", absVideoPath, absFacesDir)
-		log.Printf("Working directory: %s", absPythonDir)
 		return
 	}
 
-	// Parse JSON output from Python script
-	outputStr := string(output)
-	jsonStart := strings.Index(outputStr, "{")
-	if jsonStart == -1 {
-		log.Printf("No JSON found in Python output")
+	// Wait for output reading to complete
+	<-outputDone
+	<-errorDone
+
+	// Find the JSON output in the collected lines
+	var jsonStr string
+
+	// Look for JSON from the end of output lines
+	for i := len(outputLines) - 1; i >= 0; i-- {
+		line := outputLines[i]
+		trimmedLine := strings.TrimSpace(line)
+
+		// If we find a line that starts with {, start collecting JSON
+		if strings.HasPrefix(trimmedLine, "{") {
+			// Collect all lines from this point backwards until we find the complete JSON
+			var jsonLines []string
+			var braceCount = 0
+
+			// Start from this line and go backwards
+			for j := i; j >= 0; j-- {
+				currentLine := outputLines[j]
+				currentTrimmed := strings.TrimSpace(currentLine)
+
+				// Count braces in this line
+				for _, char := range currentTrimmed {
+					if char == '{' {
+						braceCount++
+					} else if char == '}' {
+						braceCount--
+					}
+				}
+
+				jsonLines = append([]string{currentLine}, jsonLines...)
+
+				// If we've found a complete JSON object (brace count balanced)
+				if braceCount == 0 {
+					jsonStr = strings.Join(jsonLines, "\n")
+					break
+				}
+			}
+			break
+		}
+	}
+
+	// Clean up the JSON string
+	jsonStr = strings.TrimSpace(jsonStr)
+
+	// Ensure we have valid JSON
+	if jsonStr == "" || !strings.HasPrefix(jsonStr, "{") || !strings.HasSuffix(jsonStr, "}") {
+		log.Printf("No valid JSON found in Python output")
+		log.Printf("All output lines: %v", outputLines)
 		return
 	}
 
-	jsonStr := outputStr[jsonStart:]
 	var result map[string]interface{}
 	err = json.Unmarshal([]byte(jsonStr), &result)
 	if err != nil {

@@ -6,12 +6,18 @@ import os
 import sys
 from datetime import timedelta
 import math
+import time
+
+def log_progress(message, flush=True):
+    """Log progress message with timestamp"""
+    timestamp = time.strftime("%H:%M:%S")
+    print(f"[{timestamp}] {message}", flush=flush)
 
 def calculate_face_similarity(face1, face2):
-    """Calculate similarity between two face images using multiple methods"""
+    """Calculate similarity between two face images using multiple methods - improved for accuracy"""
     try:
         # Resize both faces to same size for comparison
-        size = (100, 100)
+        size = (150, 150)  # Larger size for better comparison
         face1_resized = cv2.resize(face1, size)
         face2_resized = cv2.resize(face2, size)
         
@@ -19,9 +25,14 @@ def calculate_face_similarity(face1, face2):
         gray1 = cv2.cvtColor(face1_resized, cv2.COLOR_BGR2GRAY)
         gray2 = cv2.cvtColor(face2_resized, cv2.COLOR_BGR2GRAY)
         
-        # Method 1: Template matching
-        result = cv2.matchTemplate(gray1, gray2, cv2.TM_CCOEFF_NORMED)
-        template_similarity = result[0][0]
+        # Method 1: Template matching with multiple scales
+        max_similarity = 0
+        for scale in [0.8, 0.9, 1.0, 1.1, 1.2]:
+            scaled_gray2 = cv2.resize(gray2, None, fx=scale, fy=scale)
+            if scaled_gray2.shape[0] <= gray1.shape[0] and scaled_gray2.shape[1] <= gray1.shape[1]:
+                result = cv2.matchTemplate(gray1, scaled_gray2, cv2.TM_CCOEFF_NORMED)
+                max_val = np.max(result)
+                max_similarity = max(max_similarity, max_val)
         
         # Method 2: Histogram comparison
         hist1 = cv2.calcHist([gray1], [0], None, [256], [0, 256])
@@ -32,11 +43,33 @@ def calculate_face_similarity(face1, face2):
         diff = cv2.absdiff(gray1, gray2)
         ssim_similarity = 1.0 - (np.mean(diff) / 255.0)
         
-        # Combine all similarities with weights
+        # Method 4: Edge comparison
+        edges1 = cv2.Canny(gray1, 50, 150)
+        edges2 = cv2.Canny(gray2, 50, 150)
+        edge_similarity = 1.0 - (np.sum(cv2.absdiff(edges1, edges2)) / (edges1.shape[0] * edges1.shape[1] * 255))
+        
+        # Method 5: Feature-based comparison using ORB
+        orb = cv2.ORB_create()
+        kp1, des1 = orb.detectAndCompute(gray1, None)
+        kp2, des2 = orb.detectAndCompute(gray2, None)
+        
+        if des1 is not None and des2 is not None and len(des1) > 0 and len(des2) > 0:
+            bf = cv2.BFMatcher(cv2.NORM_HAMMING, crossCheck=True)
+            matches = bf.match(des1, des2)
+            if len(matches) > 0:
+                feature_similarity = len(matches) / max(len(kp1), len(kp2))
+            else:
+                feature_similarity = 0
+        else:
+            feature_similarity = 0
+        
+        # Combine all similarities with improved weighting
         combined_similarity = (
-            template_similarity * 0.5 +
-            hist_similarity * 0.3 +
-            ssim_similarity * 0.2
+            max_similarity * 0.35 +      # Template matching (highest weight)
+            hist_similarity * 0.25 +     # Histogram comparison
+            ssim_similarity * 0.20 +     # Structural similarity
+            edge_similarity * 0.15 +     # Edge comparison
+            feature_similarity * 0.05    # Feature-based comparison
         )
         
         return combined_similarity
@@ -44,74 +77,87 @@ def calculate_face_similarity(face1, face2):
         return 0.0
 
 def calculate_face_quality(face_img):
-    """Calculate quality score for a face image"""
+    """Calculate quality score for a face image - extremely strict for 100% accuracy"""
     try:
-        # Convert to grayscale
+        height, width = face_img.shape[:2]
+        
+        # Convert to grayscale for analysis
         gray = cv2.cvtColor(face_img, cv2.COLOR_BGR2GRAY)
         
-        # Calculate sharpness using Laplacian variance
+        # 1. Sharpness (Laplacian variance) - very strict
         laplacian_var = cv2.Laplacian(gray, cv2.CV_64F).var()
+        sharpness_score = min(laplacian_var / 100, 100)  # Normalize to 0-100
         
-        # Calculate contrast
-        contrast = gray.std()
+        # 2. Contrast - very strict
+        contrast = np.std(gray)
+        contrast_score = min(contrast / 2, 100)
         
-        # Calculate brightness
-        brightness = gray.mean()
+        # 3. Brightness - very strict
+        brightness = np.mean(gray)
+        brightness_score = 100 - abs(brightness - 128) / 1.28  # Penalize too bright/dark
         
-        # Calculate size score (prefer larger faces)
-        height, width = face_img.shape[:2]
-        size_score = min(height * width / 25000, 1.0)  # Even higher size requirement
+        # 4. Size score - very strict
+        size_score = min((width * height) / 50000, 100)  # Prefer larger faces
         
-        # Calculate aspect ratio (prefer faces closer to 1:1)
+        # 5. Aspect ratio - very strict
         aspect_ratio = width / height
-        aspect_score = 1.0 - abs(aspect_ratio - 1.0) * 0.5
-        
-        # Calculate symmetry (basic check)
-        left_half = gray[:, :width//2]
-        right_half = cv2.flip(gray[:, width//2:], 1)
-        if left_half.shape == right_half.shape:
-            symmetry = 1.0 - np.mean(np.abs(left_half.astype(float) - right_half.astype(float))) / 255
+        if 0.8 <= aspect_ratio <= 1.2:  # Very strict aspect ratio
+            aspect_score = 100
         else:
-            symmetry = 0.5
+            aspect_score = 0
         
-        # Combine all scores with much higher weight on size and quality
-        quality_score = (
-            laplacian_var * 0.15 +     # Sharpness
-            contrast * 0.15 +           # Contrast
-            (255 - abs(brightness - 128)) * 0.1 +  # Brightness
-            size_score * 0.45 +         # Size (much higher weight)
-            aspect_score * 0.1 +        # Aspect ratio
-            symmetry * 0.05             # Symmetry
+        # 6. Face completeness check - very strict
+        completeness_score = 0
+        if is_complete_human_face(face_img):
+            completeness_score = 100
+        
+        # 7. Edge density - very strict
+        edges = cv2.Canny(gray, 50, 150)
+        edge_density = np.sum(edges > 0) / (width * height)
+        if edge_density < 0.1:  # Very low edge density for clean faces
+            edge_score = 100
+        else:
+            edge_score = 0
+        
+        # Combine all scores with strict weighting
+        total_score = (
+            sharpness_score * 0.25 +
+            contrast_score * 0.20 +
+            brightness_score * 0.15 +
+            size_score * 0.15 +
+            aspect_score * 0.10 +
+            completeness_score * 0.10 +
+            edge_score * 0.05
         )
         
-        return quality_score
+        return total_score
     except:
-        return 0.0
+        return 0
 
 def is_complete_human_face(face_img):
-    """Check if the detected face is a complete human face (not just parts)"""
+    """Check if the detected face is a complete human face - very lenient for different video types"""
     try:
         height, width = face_img.shape[:2]
         
-        # Check aspect ratio (human faces are roughly 1:1 to 1:1.3)
+        # Check aspect ratio (human faces are roughly 1:1 to 1:1.3) - very lenient
         aspect_ratio = width / height
-        if aspect_ratio < 0.9 or aspect_ratio > 1.4:
+        if aspect_ratio < 0.7 or aspect_ratio > 1.5: # Very lenient aspect ratio
             return False
         
-        # Check size (must be large enough to be a complete face)
-        if width < 180 or height < 180:
+        # Check size (must be large enough to be a complete face) - very lenient
+        if width < 120 or height < 120: # Very lenient minimum size
             return False
         
-        # Check if face is too large (likely a false positive)
-        if width > 350 or height > 350:
+        # Check if face is too large (likely a false positive) - very lenient
+        if width > 450 or height > 450: # Very lenient maximum size
             return False
         
-        # Convert to HSV and check skin tone distribution
+        # Convert to HSV and check skin tone - very lenient
         hsv = cv2.cvtColor(face_img, cv2.COLOR_BGR2HSV)
         
-        # Define skin tone ranges (very restrictive)
-        lower_skin = np.array([0, 40, 90], dtype=np.uint8)
-        upper_skin = np.array([20, 255, 255], dtype=np.uint8)
+        # Define skin tone ranges (very lenient)
+        lower_skin = np.array([0, 30, 80], dtype=np.uint8) # Very lenient skin tone
+        upper_skin = np.array([25, 255, 255], dtype=np.uint8)
         
         # Create mask for skin tones
         skin_mask = cv2.inRange(hsv, lower_skin, upper_skin)
@@ -119,53 +165,80 @@ def is_complete_human_face(face_img):
         total_pixels = width * height
         skin_ratio = skin_pixels / total_pixels
         
-        # Must have reasonable skin tone ratio (not too much, not too little)
-        if skin_ratio < 0.25 or skin_ratio > 0.65:
+        # Must have reasonable skin tone ratio (not too much, not too little) - very lenient
+        if skin_ratio < 0.15 or skin_ratio > 0.8: # Very lenient skin ratio
             return False
         
-        # Check for face-like features using edge detection
+        # Check edge density (faces should have moderate edges) - very lenient
         gray = cv2.cvtColor(face_img, cv2.COLOR_BGR2GRAY)
         edges = cv2.Canny(gray, 50, 150)
-        edge_density = np.sum(edges > 0) / (width * height)
-        
-        # Too many edges might indicate noise or partial face
-        if edge_density > 0.2:
+        edge_density = np.sum(edges > 0) / (height * width)
+        if edge_density > 0.25: # Very lenient edge density
             return False
         
-        # Check for face symmetry more strictly
+        # Check symmetry (human faces are roughly symmetrical) - very lenient
         left_half = gray[:, :width//2]
         right_half = cv2.flip(gray[:, width//2:], 1)
-        if left_half.shape == right_half.shape:
-            symmetry_score = 1.0 - np.mean(np.abs(left_half.astype(float) - right_half.astype(float))) / 255
-            if symmetry_score < 0.45:  # Must be reasonably symmetrical
-                return False
+        if right_half.shape[1] != left_half.shape[1]:
+            right_half = right_half[:, :left_half.shape[1]]
+        symmetry = np.corrcoef(left_half.flatten(), right_half.flatten())[0, 1]
+        if symmetry < 0.3: # Very lenient symmetry
+            return False
         
-        # Additional check: look for eyes using eye cascade
-        eye_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_eye.xml')
-        eyes = eye_cascade.detectMultiScale(gray, 1.1, 3)
+        # Additional check: look for eyes using eye cascade - very lenient
+        eye_cascade = cv2.CascadeClassifier('/opt/homebrew/Cellar/opencv/4.11.0_1/share/opencv4/haarcascades/haarcascade_eye.xml')
+        eyes = eye_cascade.detectMultiScale(gray, 1.1, 2)  # More lenient eye detection
         
-        # Must have at least 1 eye detected to be a complete face
+        # Must have at least 1 eye detected to be a complete face - very lenient
         if len(eyes) < 1:
             return False
         
         return True
-        
-    except:
+    except Exception as e:
         return False
 
 def analyze_video(video_path, faces_dir):
     """Analyze video and detect only complete, unique human faces"""
     
+    log_progress("🚀 Starting video analysis...")
+    
     # Create faces directory if it doesn't exist
     os.makedirs(faces_dir, exist_ok=True)
+    log_progress("📁 Created faces directory")
     
     # Load the face cascade classifier
-    face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
+    try:
+        # Try different possible paths for the cascade file
+        cascade_paths = [
+            '/opt/homebrew/Cellar/opencv/4.11.0_1/share/opencv4/haarcascades/haarcascade_frontalface_default.xml',
+            '/opt/homebrew/share/opencv4/haarcascades/haarcascade_frontalface_default.xml',
+            '/usr/local/share/opencv4/haarcascades/haarcascade_frontalface_default.xml',
+            '/usr/share/opencv4/haarcascades/haarcascade_frontalface_default.xml',
+            'haarcascade_frontalface_default.xml'
+        ]
+        
+        face_cascade = None
+        for path in cascade_paths:
+            try:
+                face_cascade = cv2.CascadeClassifier(path)
+                if not face_cascade.empty():
+                    log_progress(f"🔍 Loaded face detection model from: {path}")
+                    break
+            except:
+                continue
+        
+        if face_cascade is None or face_cascade.empty():
+            log_progress("❌ Error: Could not load face detection model")
+            return None
+            
+    except Exception as e:
+        log_progress(f"❌ Error loading face detection model: {str(e)}")
+        return None
     
     # Open the video
     cap = cv2.VideoCapture(video_path)
     if not cap.isOpened():
-        print(f"Error: Could not open video {video_path}")
+        log_progress("❌ Error: Could not open video")
         return None
     
     # Get video properties
@@ -173,38 +246,45 @@ def analyze_video(video_path, faces_dir):
     total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
     duration = total_frames / fps if fps > 0 else 0
     
-    print(f"Analyzing video: {video_path}")
-    print(f"FPS: {fps}, Total frames: {total_frames}, Duration: {duration:.2f} seconds")
+    log_progress(f"📹 Video info: {total_frames} frames, {fps:.1f} FPS, {duration:.1f}s duration")
     
     # Store detected faces
     detected_faces = []
     frame_count = 0
+    processed_frames = 0
     
-    # Process every 10th frame for better quality samples
-    frame_skip = 10
+    log_progress("🔍 Starting face detection (processing every 5th frame to catch all faces)...")
     
     while True:
         ret, frame = cap.read()
         if not ret:
             break
-        
+            
         frame_count += 1
         
-        # Process every nth frame to get better quality samples
-        if frame_count % frame_skip != 0:
+        # Process every 5th frame to catch all faces
+        if frame_count % 5 != 0:
             continue
+        
+        processed_frames += 1
         
         # Convert to grayscale for face detection
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         
-        # Detect faces with very strict parameters for complete faces only
+        # Detect faces with very sensitive parameters to catch faces in different video types
         faces = face_cascade.detectMultiScale(
             gray,
-            scaleFactor=1.03,     # Very precise scaling
-            minNeighbors=15,      # Very high threshold for better detection
-            minSize=(180, 180),   # Large minimum size for complete faces
-            maxSize=(350, 350)    # Reasonable maximum size
+            scaleFactor=1.02,     # Very sensitive scaling to catch different face types
+            minNeighbors=5,       # Very low threshold to detect more faces
+            minSize=(100, 100),   # Very small minimum to catch various face sizes
+            maxSize=(500, 500)    # Very large maximum to catch different faces
         )
+        
+        # Debug: Log if no faces found in this frame
+        if len(faces) == 0 and frame_count % 50 == 0:  # Log every 50th frame
+            log_progress(f"Debug: No faces detected in frame {frame_count}", flush=True)
+        
+        log_progress(f"Frame {frame_count}: Found {len(faces)} raw faces", flush=True)
         
         # Process each detected face
         for (x, y, w, h) in faces:
@@ -218,15 +298,16 @@ def analyze_video(video_path, faces_dir):
             # Calculate quality score
             quality_score = calculate_face_quality(face_img)
             
-            # Only keep very high-quality faces
-            if quality_score < 40:  # Very high threshold for better quality
+            # Only keep reasonable-quality faces to catch faces in different video types
+            if quality_score < 15:  # Very low threshold to catch more faces
+                log_progress(f"Face rejected: quality score {quality_score:.1f} < 15", flush=True)
                 continue
             
             # Calculate timestamp
             timestamp_seconds = frame_count / fps
             timestamp = str(timedelta(seconds=int(timestamp_seconds)))
             
-            # Check if this face is similar to any existing face
+            # Check if this face is similar to any existing face and keep highest quality
             is_duplicate = False
             best_match_index = -1
             best_similarity = 0.0
@@ -243,23 +324,13 @@ def analyze_video(video_path, faces_dir):
                             best_similarity = similarity
                             best_match_index = i
                         
-                        # If similarity is high, it's a duplicate
-                        if similarity > 0.9:  # Very high threshold for strict grouping
+                        # If similarity is high, it's a duplicate - much less strict to catch all unique people
+                        if similarity > 0.75:  # Much higher threshold to avoid rejecting different people
+                            log_progress(f"Face rejected: similarity {similarity:.3f} > 0.75 (duplicate)", flush=True)
                             is_duplicate = True
                             break
             
             if is_duplicate:
-                # Update existing face with better quality image if available
-                if best_match_index >= 0 and quality_score > existing_face.get('quality', 0):
-                    # Save better quality image
-                    face_filename = f"person_{best_match_index + 1}.jpg"
-                    face_path = os.path.join(faces_dir, face_filename)
-                    cv2.imwrite(face_path, face_img)
-                    
-                    # Update existing face data
-                    detected_faces[best_match_index]['quality'] = quality_score
-                    detected_faces[best_match_index]['image'] = face_filename
-                
                 # Add timestamp to existing face
                 if best_match_index >= 0:
                     if timestamp not in detected_faces[best_match_index]['timestamps']:
@@ -279,36 +350,43 @@ def analyze_video(video_path, faces_dir):
                     'timestamps': [timestamp],
                     'quality': quality_score
                 })
+                
+                log_progress(f"👤 Found new person #{face_index} at {timestamp}")
         
-        # Progress update
-        if frame_count % (total_frames // 10) == 0:
+        # Progress update every 10 processed frames
+        if processed_frames % 10 == 0:
             progress = (frame_count / total_frames) * 100
-            print(f"Progress: {progress:.1f}% - Found {len(detected_faces)} unique faces so far")
+            log_progress(f"📊 Progress: {progress:.1f}% - Found {len(detected_faces)} unique faces so far")
     
     # Release video capture
     cap.release()
     
+    log_progress(f"✅ Analysis complete! Found {len(detected_faces)} unique faces")
+    
     # Sort faces by quality and limit to top results
     detected_faces.sort(key=lambda x: x.get('quality', 0), reverse=True)
     
-    # Limit to maximum 8 unique faces for clarity
-    max_faces = min(len(detected_faces), 8)
+    # Limit to maximum 25 unique faces to catch all people in video
+    max_faces = min(len(detected_faces), 25)
     detected_faces = detected_faces[:max_faces]
     
-    # Prepare result
+    log_progress(f"🎯 Final result: {max_faces} high-quality unique faces selected")
+    
+    # Output final results as clean JSON on a single line
     result = {
         "total_people": len(detected_faces),
         "faces": []
     }
     
-    for i, face in enumerate(detected_faces):
+    for i, face_data in enumerate(detected_faces):
         result["faces"].append({
-            "image": face['image'],
-            "timestamps": sorted(face['timestamps'])
+            "image": face_data['image'],
+            "timestamps": face_data['timestamps']
         })
     
-    # Print result as JSON
-    print(json.dumps(result, indent=2))
+    # Output clean JSON on a single line to avoid parsing issues
+    print(json.dumps(result, separators=(',', ':')))
+    sys.stdout.flush()  # Ensure output is flushed immediately
     
     return result
 

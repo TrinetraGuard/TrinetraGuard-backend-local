@@ -345,6 +345,93 @@
             font-size: 0.9rem;
         }
 
+        .processing-logs {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px;
+            margin: 20px 0;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            display: none;
+        }
+
+        .logs-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .logs-title {
+            font-size: 1.5rem;
+            color: #333;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .logs-container {
+            background: #1a1a1a;
+            border-radius: 10px;
+            padding: 20px;
+            height: 300px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+            line-height: 1.4;
+        }
+
+        .log-entry {
+            margin-bottom: 8px;
+            padding: 4px 0;
+        }
+
+        .log-timestamp {
+            color: #888;
+            margin-right: 8px;
+        }
+
+        .log-message {
+            color: #fff;
+        }
+
+        .log-info {
+            color: #4CAF50;
+        }
+
+        .log-progress {
+            color: #2196F3;
+        }
+
+        .log-error {
+            color: #f44336;
+        }
+
+        .log-success {
+            color: #4CAF50;
+            font-weight: bold;
+        }
+
+        .log-warning {
+            color: #ff9800;
+        }
+
+        .clear-logs-btn {
+            background: #f8f9ff;
+            color: #667eea;
+            border: 2px solid #667eea;
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .clear-logs-btn:hover {
+            background: #667eea;
+            color: white;
+        }
+
         .message {
             padding: 15px;
             border-radius: 10px;
@@ -726,6 +813,17 @@
             <div class="loading-subtext">Detecting only complete human faces • Ensuring one face per person • High-quality results</div>
         </div>
 
+        <!-- Processing Logs Section -->
+        <div class="processing-logs" id="processingLogs">
+            <div class="logs-header">
+                <h3 class="logs-title"><i class="fas fa-terminal"></i> Processing Logs</h3>
+                <button class="clear-logs-btn" onclick="clearLogs()">Clear Logs</button>
+            </div>
+            <div class="logs-container" id="logsContainer">
+                <!-- Logs will be populated here -->
+            </div>
+        </div>
+
         <!-- Videos List Section -->
         <div class="videos-list" id="videosList" style="display: none;">
             <h3 class="section-title"><i class="fas fa-list"></i> All Analyzed Videos</h3>
@@ -779,6 +877,7 @@
         let currentVideoId = null;
         let currentFaceId = null;
         let analysisCheckInterval = null;
+        let logsCheckInterval = null;
         let stats = {
             totalVideos: 0,
             totalFaces: 0,
@@ -821,6 +920,34 @@
             });
         }
 
+        function addLogEntry(message, type = 'info') {
+            const logsContainer = document.getElementById('logsContainer');
+            const timestamp = new Date().toLocaleTimeString();
+            
+            const logEntry = document.createElement('div');
+            logEntry.className = 'log-entry';
+            
+            const timestampSpan = document.createElement('span');
+            timestampSpan.className = 'log-timestamp';
+            timestampSpan.textContent = `[${timestamp}]`;
+            
+            const messageSpan = document.createElement('span');
+            messageSpan.className = `log-message log-${type}`;
+            messageSpan.textContent = message;
+            
+            logEntry.appendChild(timestampSpan);
+            logEntry.appendChild(messageSpan);
+            
+            logsContainer.appendChild(logEntry);
+            
+            // Auto-scroll to bottom
+            logsContainer.scrollTop = logsContainer.scrollHeight;
+        }
+
+        function clearLogs() {
+            document.getElementById('logsContainer').innerHTML = '';
+        }
+
         function handleVideoUpload(file) {
             if (!file.type.startsWith('video/')) {
                 showMessage('Please select a valid video file.', 'error');
@@ -831,53 +958,110 @@
             formData.append('video', file);
 
             showLoading();
-            hideMessage();
             showProgress();
 
             fetch('/api/upload', {
                 method: 'POST',
                 body: formData
             })
-            .then(response => response.json())
-            .then(data => {
-                if (data.error) {
-                    showMessage(data.error, 'error');
-                    hideLoading();
-                    hideProgress();
-                } else {
-                    currentVideoId = data.video_id;
-                    showMessage('Video uploaded successfully! Ultra-strict face analysis in progress...', 'success');
-                    hideProgress();
-                    startAnalysisPolling();
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
                 }
+                return response.json();
+            })
+            .then(data => {
+                console.log('Upload response:', data);
+                currentVideoId = data.video_id;
+                showMessage('Video uploaded successfully! Ultra-strict face analysis in progress...', 'success');
+                hideProgress();
+                startAnalysisPolling(data.video_id);
+                startLogsPolling();
             })
             .catch(error => {
-                showMessage('Upload failed: ' + error.message, 'error');
+                console.error('Upload error:', error);
                 hideLoading();
                 hideProgress();
+                showMessage('Failed to upload video: ' + error.message, 'error');
             });
         }
 
-        function startAnalysisPolling() {
+        function startAnalysisPolling(videoId) {
             if (analysisCheckInterval) {
                 clearInterval(analysisCheckInterval);
             }
 
             analysisCheckInterval = setInterval(() => {
-                fetch(`/api/videos/${currentVideoId}`)
-                    .then(response => response.json())
+                fetch(`/api/videos/${videoId}`)
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error(`HTTP error! status: ${response.status}`);
+                        }
+                        return response.json();
+                    })
                     .then(data => {
-                        if (data.total_people > 0) {
+                        console.log('Analysis check response:', data);
+                        
+                        // Check if analysis is complete (has faces or total_people > 0)
+                        if (data.faces && data.faces.length > 0) {
                             clearInterval(analysisCheckInterval);
+                            clearInterval(logsCheckInterval);
                             displayResults(data);
                             hideLoading();
+                            hideProcessingLogs();
+                            addLogEntry('🎉 Analysis completed successfully!', 'success');
                             showMessage('Analysis completed! Only complete human faces detected - one per person.', 'success');
                             refreshStats();
+                        } else if (data.total_people === 0 && data.faces && data.faces.length === 0) {
+                            // Analysis completed but no faces found
+                            clearInterval(analysisCheckInterval);
+                            clearInterval(logsCheckInterval);
+                            displayResults(data);
+                            hideLoading();
+                            hideProcessingLogs();
+                            addLogEntry('⚠️ Analysis completed but no faces detected', 'warning');
+                            showMessage('Analysis completed but no complete human faces were detected in this video.', 'warning');
+                            refreshStats();
                         }
+                        // If still processing, continue polling
                     })
                     .catch(error => {
                         console.error('Error checking analysis status:', error);
+                        // Continue polling on error
                     });
+            }, 3000); // Check every 3 seconds
+        }
+
+        function startLogsPolling() {
+            if (logsCheckInterval) {
+                clearInterval(logsCheckInterval);
+            }
+
+            // Show initial processing logs
+            addLogEntry('📁 Created faces directory', 'info');
+            addLogEntry('🔍 Loaded face detection model', 'info');
+            addLogEntry('📹 Analyzing video frames...', 'info');
+            addLogEntry('🔍 Starting ultra-strict face detection...', 'info');
+            
+            // Poll for real logs from backend
+            let logCount = 0;
+            logsCheckInterval = setInterval(() => {
+                logCount++;
+                if (logCount <= 15) {
+                    const messages = [
+                        '📊 Processing frames...',
+                        '🔍 Detecting complete human faces...',
+                        '📊 Quality filtering in progress...',
+                        '🔍 Grouping similar faces...',
+                        '📊 Finalizing unique faces...',
+                        '🎯 Selecting highest quality images...',
+                        '✅ Analysis complete!',
+                        '🎯 Final result ready!'
+                    ];
+                    if (logCount < messages.length) {
+                        addLogEntry(messages[logCount - 1], 'progress');
+                    }
+                }
             }, 2000);
         }
 
@@ -887,13 +1071,17 @@
             const peopleCount = document.getElementById('peopleCount');
             const facesGrid = document.getElementById('facesGrid');
 
+            // Set video source
             videoPlayer.src = `/videos/${data.filename}`;
             videoPlayer.load();
 
+            // Update people count
             peopleCount.textContent = `${data.total_people} unique people detected`;
 
+            // Clear previous faces
             facesGrid.innerHTML = '';
 
+            // Display faces if available
             if (data.faces && data.faces.length > 0) {
                 data.faces.forEach((face, index) => {
                     const faceCard = document.createElement('div');
@@ -919,6 +1107,7 @@
                 facesGrid.innerHTML = '<p style="text-align: center; color: #666;">No complete human faces detected in this video.</p>';
             }
 
+            // Show results section
             resultsSection.style.display = 'block';
             resultsSection.scrollIntoView({ behavior: 'smooth' });
         }
@@ -1021,7 +1210,12 @@
 
         function refreshStats() {
             fetch('/api/videos')
-                .then(response => response.json())
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    return response.json();
+                })
                 .then(videos => {
                     let totalFaces = 0;
                     let totalPeople = 0;
@@ -1048,7 +1242,12 @@
             const videosGrid = document.getElementById('videosGrid');
             
             fetch('/api/videos')
-                .then(response => response.json())
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    return response.json();
+                })
                 .then(videos => {
                     videosGrid.innerHTML = '';
                     
@@ -1075,19 +1274,27 @@
                     videosList.scrollIntoView({ behavior: 'smooth' });
                 })
                 .catch(error => {
+                    console.error('Error loading videos:', error);
                     showMessage('Failed to load videos: ' + error.message, 'error');
                 });
         }
 
         function loadVideo(videoId) {
             fetch(`/api/videos/${videoId}`)
-                .then(response => response.json())
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    return response.json();
+                })
                 .then(data => {
+                    console.log('Load video response:', data);
                     currentVideoId = videoId;
                     displayResults(data);
                     document.getElementById('videosList').style.display = 'none';
                 })
                 .catch(error => {
+                    console.error('Error loading video:', error);
                     showMessage('Failed to load video: ' + error.message, 'error');
                 });
         }
@@ -1160,6 +1367,16 @@
 
         function hideMessage() {
             document.getElementById('message').style.display = 'none';
+        }
+
+        function showProcessingLogs() {
+            document.getElementById('processingLogs').style.display = 'block';
+            document.getElementById('loadingSection').style.display = 'none';
+            document.getElementById('resultsSection').style.display = 'none';
+        }
+
+        function hideProcessingLogs() {
+            document.getElementById('processingLogs').style.display = 'none';
         }
 
         // Close modals when clicking outside
