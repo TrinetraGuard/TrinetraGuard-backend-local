@@ -431,6 +431,80 @@
             margin-top: 30px;
         }
 
+        .settings-section {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 30px;
+        }
+
+        .settings-header {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #e9ecef;
+        }
+
+        .settings-icon {
+            font-size: 2em;
+        }
+
+        .settings-title {
+            font-size: 1.8em;
+            font-weight: 700;
+            color: #2d3748;
+        }
+
+        .settings-item {
+            background: white;
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+            border-left: 4px solid #667eea;
+        }
+
+        .settings-label {
+            font-size: 1.2em;
+            font-weight: 600;
+            color: #2d3748;
+            margin-bottom: 8px;
+        }
+
+        .settings-description {
+            color: #718096;
+            margin-bottom: 20px;
+            line-height: 1.5;
+        }
+
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #c82333;
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #5a6268;
+        }
+
+        .btn-info {
+            background: #17a2b8;
+            color: white;
+        }
+
+        .btn-info:hover {
+            background: #138496;
+        }
+
         .search-result-item {
             background: white;
             border-radius: 10px;
@@ -544,6 +618,7 @@
         <div class="main-tabs">
             <button class="main-tab active" onclick="showMainTab('upload')">📹 Upload Video</button>
             <button class="main-tab" onclick="showMainTab('search')">🔍 Find by Face</button>
+            <button class="main-tab" onclick="showMainTab('settings')">⚙️ Settings</button>
         </div>
 
         <!-- Upload Video Tab -->
@@ -654,6 +729,40 @@
 
             <div class="search-results" id="searchResults"></div>
         </div>
+
+        <!-- Settings Tab -->
+        <div id="settingsTab" class="tab-content">
+            <div class="settings-section">
+                <div class="settings-header">
+                    <div class="settings-icon">⚙️</div>
+                    <div class="settings-title">System Settings</div>
+                </div>
+                
+                <div class="settings-item">
+                    <div class="settings-label">Database Management</div>
+                    <div class="settings-description">Reset the entire database and remove all videos and faces. This action cannot be undone.</div>
+                    <button class="btn btn-danger" onclick="resetDatabase()">
+                        🗑️ Reset Database
+                    </button>
+                </div>
+                
+                <div class="settings-item">
+                    <div class="settings-label">Search History</div>
+                    <div class="settings-description">View your recent search history and statistics</div>
+                    <button class="btn btn-secondary" onclick="viewSearchHistory()">
+                        📊 View Search History
+                    </button>
+                </div>
+                
+                <div class="settings-item">
+                    <div class="settings-label">System Information</div>
+                    <div class="settings-description">View system statistics and performance metrics</div>
+                    <button class="btn btn-info" onclick="viewSystemInfo()">
+                        📈 System Info
+                    </button>
+                </div>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -682,6 +791,8 @@
                 document.getElementById('uploadTab').classList.add('active');
             } else if (tab === 'search') {
                 document.getElementById('searchTab').classList.add('active');
+            } else if (tab === 'settings') {
+                document.getElementById('settingsTab').classList.add('active');
             }
         }
 
@@ -1046,7 +1157,17 @@
                             </div>
                         ` : ''}
                         
+                        <div class="search-result-actions">
+                            <button class="btn btn-primary" onclick="previewVideo('${match.video.id}')">
+                                🎬 Preview Video
+                            </button>
+                            <button class="btn btn-secondary" onclick="viewVideoDetails('${match.video.id}')">
+                                📋 Video Details
+                            </button>
+                        </div>
+                        
                         <div class="search-result-faces">
+                            <div class="faces-title">Matched Faces (${match.matched_faces.length})</div>
                             ${match.matched_faces.map(face => `
                                 <img src="/${face}" alt="Matched Face" class="search-result-face" 
                                      onerror="this.style.display='none'">
@@ -1104,6 +1225,401 @@
         function hideSearchSuccess() {
             document.getElementById('searchSuccess').style.display = 'none';
         }
+
+        // Settings functions
+        function resetDatabase() {
+            if (!confirm('⚠️ WARNING: This will permanently delete ALL videos and faces from the database. This action cannot be undone. Are you sure you want to continue?')) {
+                return;
+            }
+
+            if (!confirm('Are you absolutely sure? This will remove everything and start fresh.')) {
+                return;
+            }
+
+            fetch('/api/videos/reset-database?confirm=true', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    alert('Error: ' + data.error);
+                } else {
+                    alert('✅ Database reset successfully! All videos and faces have been removed.');
+                    // Refresh the page to show empty state
+                    location.reload();
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error resetting database: ' + error.message);
+            });
+        }
+
+        function viewSearchHistory() {
+            fetch('/api/search-history')
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    alert('Error: ' + data.error);
+                    return;
+                }
+                
+                let historyHtml = '<div class="search-history-modal">';
+                historyHtml += '<div class="modal-header"><h3>Search History</h3></div>';
+                historyHtml += '<div class="modal-content">';
+                
+                if (data.searches && data.searches.length > 0) {
+                    data.searches.forEach(search => {
+                        const searchDate = new Date(search.search_time).toLocaleString();
+                        historyHtml += `
+                            <div class="history-item">
+                                <div class="history-date">${searchDate}</div>
+                                <div class="history-stats">
+                                    <span>📊 ${search.matches_found} matches found</span>
+                                    <span>📹 ${search.total_videos} videos searched</span>
+                                    <span>⏱️ ${search.processing_time.toFixed(2)}s</span>
+                                </div>
+                            </div>
+                        `;
+                    });
+                } else {
+                    historyHtml += '<div class="no-history">No search history found.</div>';
+                }
+                
+                historyHtml += '</div></div>';
+                
+                // Create modal
+                const modal = document.createElement('div');
+                modal.className = 'modal';
+                modal.innerHTML = historyHtml;
+                document.body.appendChild(modal);
+                
+                // Close modal on click
+                modal.addEventListener('click', () => {
+                    document.body.removeChild(modal);
+                });
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error loading search history: ' + error.message);
+            });
+        }
+
+        function viewSystemInfo() {
+            fetch('/api/videos/stats')
+            .then(response => response.json())
+            .then(data => {
+                let infoHtml = '<div class="system-info-modal">';
+                infoHtml += '<div class="modal-header"><h3>System Information</h3></div>';
+                infoHtml += '<div class="modal-content">';
+                infoHtml += `
+                    <div class="info-item">
+                        <span class="info-label">Total Videos:</span>
+                        <span class="info-value">${data.total_records || 0}</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Active Videos:</span>
+                        <span class="info-value">${data.active_records || 0}</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Archived Videos:</span>
+                        <span class="info-value">${data.archived_records || 0}</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Total Faces Detected:</span>
+                        <span class="info-value">${data.total_faces_detected || 0}</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Videos with GPS:</span>
+                        <span class="info-value">${data.locations_with_gps || 0}</span>
+                    </div>
+                `;
+                infoHtml += '</div></div>';
+                
+                // Create modal
+                const modal = document.createElement('div');
+                modal.className = 'modal';
+                modal.innerHTML = infoHtml;
+                document.body.appendChild(modal);
+                
+                // Close modal on click
+                modal.addEventListener('click', () => {
+                    document.body.removeChild(modal);
+                });
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error loading system info: ' + error.message);
+            });
+        }
+
+        function previewVideo(videoId) {
+            fetch(`/api/videos/${videoId}/preview`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    alert('Error: ' + data.error);
+                    return;
+                }
+                
+                const video = data.video;
+                let previewHtml = '<div class="video-preview-modal">';
+                previewHtml += '<div class="modal-header"><h3>Video Preview</h3></div>';
+                previewHtml += '<div class="modal-content">';
+                previewHtml += `
+                    <div class="video-info">
+                        <div class="video-title">${video.original_filename}</div>
+                        <div class="video-details">
+                            <span>📅 Uploaded: ${new Date(video.upload_time).toLocaleString()}</span>
+                            <span>👥 Unique Faces: ${video.unique_faces}</span>
+                            <span>⏱️ Processing Time: ${video.processing_time.toFixed(2)}s</span>
+                        </div>
+                        ${video.location_name ? `<div class="video-location">📍 ${video.location_name}</div>` : ''}
+                    </div>
+                    <div class="video-player">
+                        <video controls width="100%" style="max-height: 400px;">
+                            <source src="/api/videos/${videoId}/file" type="video/mp4">
+                            Your browser does not support the video tag.
+                        </video>
+                    </div>
+                `;
+                previewHtml += '</div></div>';
+                
+                // Create modal
+                const modal = document.createElement('div');
+                modal.className = 'modal';
+                modal.innerHTML = previewHtml;
+                document.body.appendChild(modal);
+                
+                // Close modal on click
+                modal.addEventListener('click', () => {
+                    document.body.removeChild(modal);
+                });
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error loading video preview: ' + error.message);
+            });
+        }
+
+        function viewVideoDetails(videoId) {
+            fetch(`/api/videos/${videoId}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    alert('Error: ' + data.error);
+                    return;
+                }
+                
+                const video = data.video;
+                let detailsHtml = '<div class="video-details-modal">';
+                detailsHtml += '<div class="modal-header"><h3>Video Details</h3></div>';
+                detailsHtml += '<div class="modal-content">';
+                detailsHtml += `
+                    <div class="detail-item">
+                        <span class="detail-label">File Name:</span>
+                        <span class="detail-value">${video.original_filename}</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">Upload Time:</span>
+                        <span class="detail-value">${new Date(video.upload_time).toLocaleString()}</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">Status:</span>
+                        <span class="detail-value">${video.status}</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">Unique Faces:</span>
+                        <span class="detail-value">${video.unique_faces_count}</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">Processing Time:</span>
+                        <span class="detail-value">${video.processing_time.toFixed(2)}s</span>
+                    </div>
+                    ${video.location_name ? `
+                        <div class="detail-item">
+                            <span class="detail-label">Location:</span>
+                            <span class="detail-value">${video.location_name}</span>
+                        </div>
+                    ` : ''}
+                    ${video.latitude && video.longitude ? `
+                        <div class="detail-item">
+                            <span class="detail-label">Coordinates:</span>
+                            <span class="detail-value">${video.latitude.toFixed(6)}, ${video.longitude.toFixed(6)}</span>
+                        </div>
+                    ` : ''}
+                `;
+                detailsHtml += '</div></div>';
+                
+                // Create modal
+                const modal = document.createElement('div');
+                modal.className = 'modal';
+                modal.innerHTML = detailsHtml;
+                document.body.appendChild(modal);
+                
+                // Close modal on click
+                modal.addEventListener('click', () => {
+                    document.body.removeChild(modal);
+                });
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error loading video details: ' + error.message);
+            });
+        }
     </script>
+
+    <style>
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .search-history-modal,
+        .system-info-modal {
+            background: white;
+            border-radius: 15px;
+            max-width: 600px;
+            width: 90%;
+            max-height: 80%;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            padding: 20px;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .modal-header h3 {
+            margin: 0;
+            color: #2d3748;
+        }
+
+        .modal-content {
+            padding: 20px;
+        }
+
+        .history-item {
+            padding: 15px;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .history-date {
+            font-weight: 600;
+            color: #2d3748;
+            margin-bottom: 5px;
+        }
+
+        .history-stats {
+            display: flex;
+            gap: 15px;
+            color: #718096;
+            font-size: 0.9em;
+        }
+
+        .no-history {
+            text-align: center;
+            color: #718096;
+            padding: 20px;
+        }
+
+        .info-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .info-label {
+            font-weight: 600;
+            color: #2d3748;
+        }
+
+        .info-value {
+            color: #667eea;
+            font-weight: 600;
+        }
+
+        .search-result-actions {
+            display: flex;
+            gap: 10px;
+            margin: 15px 0;
+        }
+
+        .faces-title {
+            font-weight: 600;
+            color: #2d3748;
+            margin-bottom: 10px;
+            font-size: 1.1em;
+        }
+
+        .video-preview-modal,
+        .video-details-modal {
+            background: white;
+            border-radius: 15px;
+            max-width: 800px;
+            width: 90%;
+            max-height: 90%;
+            overflow-y: auto;
+        }
+
+        .video-info {
+            margin-bottom: 20px;
+        }
+
+        .video-title {
+            font-size: 1.3em;
+            font-weight: 600;
+            color: #2d3748;
+            margin-bottom: 10px;
+        }
+
+        .video-details {
+            display: flex;
+            gap: 20px;
+            color: #718096;
+            font-size: 0.9em;
+            margin-bottom: 10px;
+        }
+
+        .video-location {
+            color: #667eea;
+            font-weight: 600;
+        }
+
+        .video-player {
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .detail-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 12px 0;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .detail-label {
+            font-weight: 600;
+            color: #2d3748;
+        }
+
+        .detail-value {
+            color: #667eea;
+            font-weight: 600;
+        }
+    </style>
 </body>
 </html> 

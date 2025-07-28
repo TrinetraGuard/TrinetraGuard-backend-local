@@ -1,7 +1,10 @@
 package handlers
 
 import (
+	"fmt"
+	"log"
 	"net/http"
+	"os"
 	"strconv"
 	"time"
 
@@ -17,6 +20,11 @@ func InitializeStorage() {
 	videoStorage = models.NewVideoStorage("../storage/data/videos.json")
 	if err := videoStorage.Load(); err != nil {
 		panic("Failed to load video storage: " + err.Error())
+	}
+
+	searchHistory = models.NewSearchHistory("../storage/data/search_history.json")
+	if err := searchHistory.Load(); err != nil {
+		log.Printf("Warning: Failed to load search history: %v", err)
 	}
 }
 
@@ -228,4 +236,120 @@ func containsSubstring(s, substr string) bool {
 		}
 	}
 	return false
+}
+
+// ResetDatabaseHandler completely resets the database and removes all files
+func ResetDatabaseHandler(c *gin.Context) {
+	// Get confirmation from request - check both form data and query parameters
+	confirm := c.PostForm("confirm")
+	if confirm == "" {
+		confirm = c.Query("confirm")
+	}
+
+	if confirm != "true" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "Please confirm by sending 'confirm=true'",
+		})
+		return
+	}
+
+	// Reset the storage
+	if err := videoStorage.ResetDatabase(); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "Failed to reset database: " + err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Database reset successfully. All videos and faces have been removed.",
+	})
+}
+
+// GetSearchHistoryHandler returns search history records
+func GetSearchHistoryHandler(c *gin.Context) {
+	if searchHistory == nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "Search history not initialized",
+		})
+		return
+	}
+
+	records := searchHistory.ListRecords()
+	c.JSON(http.StatusOK, gin.H{
+		"searches": records,
+		"count":    len(records),
+	})
+}
+
+// GetSearchHistoryStatsHandler returns search history statistics
+func GetSearchHistoryStatsHandler(c *gin.Context) {
+	if searchHistory == nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "Search history not initialized",
+		})
+		return
+	}
+
+	stats := searchHistory.GetStats()
+	c.JSON(http.StatusOK, stats)
+}
+
+// GetVideoPreviewHandler returns video preview information
+func GetVideoPreviewHandler(c *gin.Context) {
+	id := c.Param("id")
+	record, exists := videoStorage.GetRecord(id)
+	if !exists {
+		c.JSON(http.StatusNotFound, gin.H{
+			"error": "Video record not found",
+		})
+		return
+	}
+
+	// Check if video file exists
+	if _, err := os.Stat(record.StoredPath); os.IsNotExist(err) {
+		c.JSON(http.StatusNotFound, gin.H{
+			"error": "Video file not found",
+		})
+		return
+	}
+
+	// Return video preview information
+	c.JSON(http.StatusOK, gin.H{
+		"video": gin.H{
+			"id":                record.ID,
+			"original_filename": record.OriginalFilename,
+			"upload_time":       record.UploadTime,
+			"status":            record.Status,
+			"location_name":     record.LocationName,
+			"latitude":          record.Latitude,
+			"longitude":         record.Longitude,
+			"unique_faces":      record.UniqueFacesCount,
+			"processing_time":   record.ProcessingTime,
+			"video_url":         fmt.Sprintf("/api/videos/%s/file", record.ID),
+		},
+	})
+}
+
+// GetVideoFileHandler serves the actual video file
+func GetVideoFileHandler(c *gin.Context) {
+	id := c.Param("id")
+	record, exists := videoStorage.GetRecord(id)
+	if !exists {
+		c.JSON(http.StatusNotFound, gin.H{
+			"error": "Video record not found",
+		})
+		return
+	}
+
+	// Check if video file exists
+	if _, err := os.Stat(record.StoredPath); os.IsNotExist(err) {
+		c.JSON(http.StatusNotFound, gin.H{
+			"error": "Video file not found",
+		})
+		return
+	}
+
+	// Serve the video file
+	c.File(record.StoredPath)
 }

@@ -76,6 +76,15 @@ func setupRoutes(r *gin.Engine) {
 		api.POST("/videos/:id/restore", handlers.RestoreVideoHandler)
 		api.GET("/videos/stats", handlers.GetVideoStatsHandler)
 		api.POST("/videos/cleanup", handlers.CleanupOldVideosHandler)
+		api.POST("/videos/reset-database", handlers.ResetDatabaseHandler)
+
+		// Search history endpoints
+		api.GET("/search-history", handlers.GetSearchHistoryHandler)
+		api.GET("/search-history/stats", handlers.GetSearchHistoryStatsHandler)
+
+		// Video preview endpoint
+		api.GET("/videos/:id/preview", handlers.GetVideoPreviewHandler)
+		api.GET("/videos/:id/file", handlers.GetVideoFileHandler)
 	}
 
 	// Serve static files

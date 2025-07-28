@@ -36,7 +36,7 @@ def load_and_encode_image(image_path):
         print(f"Error loading image {image_path}: {str(e)}")
         return None
 
-def compare_faces(search_encoding, face_images, similarity_threshold=0.6):
+def compare_faces(search_encoding, face_images, similarity_threshold=0.5):
     """Compare search face with stored face images"""
     matched_faces = []
     
@@ -77,7 +77,7 @@ def main():
     parser = argparse.ArgumentParser(description="Search for faces in stored images")
     parser.add_argument("search_image", help="Path to the search image")
     parser.add_argument("--face-images", help="Comma-separated list of face images to compare")
-    parser.add_argument("--threshold", type=float, default=0.6, help="Similarity threshold (default: 0.6)")
+    parser.add_argument("--threshold", type=float, default=0.5, help="Similarity threshold (default: 0.5)")
     
     args = parser.parse_args()
     

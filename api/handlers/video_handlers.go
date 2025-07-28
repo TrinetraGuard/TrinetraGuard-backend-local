@@ -1,8 +1,10 @@
 package handlers
 
 import (
+	"crypto/md5"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"os"
@@ -16,6 +18,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 )
+
+var searchHistory *models.SearchHistory
 
 // VideoUploadResponse represents the response structure
 type VideoUploadResponse struct {
@@ -370,4 +374,20 @@ func isValidImageFile(filename string) bool {
 		}
 	}
 	return false
+}
+
+// generateImageHash generates an MD5 hash of an image file
+func generateImageHash(filePath string) string {
+	file, err := os.Open(filePath)
+	if err != nil {
+		return ""
+	}
+	defer file.Close()
+
+	hash := md5.New()
+	if _, err := io.Copy(hash, file); err != nil {
+		return ""
+	}
+
+	return fmt.Sprintf("%x", hash.Sum(nil))
 }

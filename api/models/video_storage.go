@@ -3,6 +3,7 @@ package models
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"time"
@@ -216,4 +217,28 @@ func (vs *VideoStorage) CleanupOldRecords(daysToKeep int) error {
 	}
 
 	return nil
+}
+
+// ResetDatabase completely resets the database and removes all files
+func (vs *VideoStorage) ResetDatabase() error {
+	// Remove all video files
+	for _, record := range vs.Records {
+		if err := os.Remove(record.StoredPath); err != nil {
+			log.Printf("Warning: Could not remove video file %s: %v", record.StoredPath, err)
+		}
+
+		// Remove face images
+		for _, faceImage := range record.FaceImages {
+			facePath := filepath.Join("../storage/faces", filepath.Base(faceImage))
+			if err := os.Remove(facePath); err != nil {
+				log.Printf("Warning: Could not remove face image %s: %v", facePath, err)
+			}
+		}
+	}
+
+	// Clear all records
+	vs.Records = make(map[string]*VideoRecord)
+
+	// Save empty database
+	return vs.Save()
 }
