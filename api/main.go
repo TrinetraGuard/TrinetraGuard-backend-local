@@ -17,11 +17,12 @@ func main() {
 	// Create Gin router
 	r := gin.Default()
 
-	// Configure CORS
+	// Configure CORS for API usage
 	config := cors.DefaultConfig()
 	config.AllowAllOrigins = true
 	config.AllowMethods = []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"}
-	config.AllowHeaders = []string{"Origin", "Content-Type", "Accept", "Authorization"}
+	config.AllowHeaders = []string{"Origin", "Content-Type", "Accept", "Authorization", "X-Requested-With"}
+	config.ExposeHeaders = []string{"Content-Length", "Content-Type"}
 	r.Use(cors.New(config))
 
 	// Create upload directories if they don't exist
@@ -33,8 +34,8 @@ func main() {
 	// Initialize video storage
 	handlers.InitializeStorage()
 
-	// Setup routes
-	setupRoutes(r)
+	// Setup API routes
+	setupAPIRoutes(r)
 
 	// Start server
 	port := os.Getenv("PORT")
@@ -42,29 +43,22 @@ func main() {
 		port = "8080"
 	}
 
-	log.Printf("Server starting on port %s", port)
+	log.Printf("Backend API server starting on port %s", port)
 	if err := r.Run(":" + port); err != nil {
 		log.Fatal("Failed to start server:", err)
 	}
 }
 
-func setupRoutes(r *gin.Engine) {
-	// Serve the frontend
-	r.GET("/", func(c *gin.Context) {
-		c.File("../frontend/pages/index.html")
-	})
-
-	// Serve the storage page
-	r.GET("/storage", func(c *gin.Context) {
-		c.File("../frontend/pages/storage.html")
-	})
-
+func setupAPIRoutes(r *gin.Engine) {
 	// API routes
 	api := r.Group("/api")
 	{
+		// Health check
+		api.GET("/health", handlers.HealthCheckHandler)
+
+		// Video upload and processing
 		api.POST("/upload-video", handlers.UploadVideoHandler)
 		api.POST("/search-by-face", handlers.SearchByFaceHandler)
-		api.GET("/health", handlers.HealthCheckHandler)
 
 		// Storage management routes
 		api.GET("/videos", handlers.ListVideosHandler)
@@ -82,11 +76,25 @@ func setupRoutes(r *gin.Engine) {
 		api.GET("/search-history", handlers.GetSearchHistoryHandler)
 		api.GET("/search-history/stats", handlers.GetSearchHistoryStatsHandler)
 
-		// Video preview endpoint
+		// Video preview and file serving
 		api.GET("/videos/:id/preview", handlers.GetVideoPreviewHandler)
 		api.GET("/videos/:id/file", handlers.GetVideoFileHandler)
+
+		// Face images serving
+		api.Static("/faces", "../storage/faces")
 	}
 
-	// Serve static files
-	r.Static("/faces", "../storage/faces")
+	// Root endpoint for API info
+	r.GET("/", func(c *gin.Context) {
+		c.JSON(200, gin.H{
+			"message": "TrinetraGuard Backend API",
+			"version": "1.0.0",
+			"endpoints": gin.H{
+				"health": "/api/health",
+				"upload": "/api/upload-video",
+				"search": "/api/search-by-face",
+				"videos": "/api/videos",
+			},
+		})
+	})
 }
