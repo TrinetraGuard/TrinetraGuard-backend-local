@@ -4,15 +4,12 @@
 *.dll
 *.so
 *.dylib
-bin/
-dist/
 
 # Test binary, built with `go test -c`
 *.test
 
 # Output of the go coverage tool, specifically when used with LiteIDE
 *.out
-coverage.html
 
 # Dependency directories (remove the comment below to include it)
 # vendor/
@@ -23,22 +20,13 @@ go.work
 # Environment variables
 .env
 .env.local
-.env.production
-
-# Database files
-*.db
-*.sqlite
-*.sqlite3
-
-# Log files
-*.log
-logs/
+.env.*.local
 
 # IDE files
 .vscode/
 .idea/
 *.swp
-*.swo
+*.swo a 
 *~
 
 # OS generated files
@@ -50,43 +38,13 @@ logs/
 ehthumbs.db
 Thumbs.db
 
+# Logs
+*.log
+
+# Build output
+trinetraguard-backend
+trinetraguard-backend_unix
+
 # Temporary files
 tmp/
 temp/
-*.tmp
-
-# Shell scripts (development and demo scripts)
-*.sh
-!setup_project.sh
-
-# Uploaded files (for development)
-videos/*
-!videos/.gitkeep
-finder/*
-!finder/.gitkeep
-
-# Media files
-*.mp4
-*.avi
-*.mov
-*.mkv
-*.wmv
-*.flv
-*.webm
-*.jpg
-*.jpeg
-*.png
-*.gif
-*.bmp
-*.tiff
-*.webp
-
-# Build artifacts
-build/
-target/
-
-# Docker
-.dockerignore
-
-# Air (hot reload)
-tmp/ 

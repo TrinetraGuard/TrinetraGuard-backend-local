@@ -1,254 +1,153 @@
-# TrinetraGuard Backend - Video Processing API
+# TrinetraGuard Backend
 
-A high-accuracy video face detection and recognition system built with Go and Python, featuring intelligent deduplication and comprehensive storage management. This is a standalone backend API designed to work with any frontend application.
+e of A Go-based backend service for managing lost person reports with image upload capabilities.
 
-## 🏗️ Project Structure
+## Features
 
-```
-Trinetr-backend/
-├── 📁 api/                          # Backend API (Go + Python)
-│   ├── 📁 handlers/                 # HTTP request handlers
-│   │   ├── 📄 video_handlers.go     # Video upload and processing
-│   │   └── 📄 storage_handlers.go   # Storage management
-│   ├── 📁 models/                   # Data models and storage
-│   │   ├── 📄 video_storage.go      # Video record management
-│   │   └── 📄 search_history.go     # Search history management
-│   ├── 📁 python/                   # Python ML components
-│   │   ├── 📄 face_detect.py        # Main face detection script
-│   │   ├── 📄 face_search.py        # Face search and comparison
-│   │   └── 📄 requirements.txt      # Python dependencies
-│   ├── 📁 venv/                     # Python virtual environment
-│   ├── 📄 main.go                   # Server entry point
-│   ├── 📄 go.mod                    # Go dependencies
-│   └── 📄 go.sum                    # Go dependency checksums
-│
-├── 📁 storage/                      # Data storage
-│   ├── 📁 videos/                   # Uploaded video files
-│   ├── 📁 faces/                    # Extracted face images
-│   ├── 📁 temp/                     # Temporary files
-│   └── 📁 data/                     # JSON storage files
-│       ├── 📄 videos.json           # Video records database
-│       └── 📄 search_history.json   # Search history database
-│
-├── 📁 scripts/                      # Utility scripts
-│   ├── 📁 setup/                    # Setup and installation
-│   │   ├── 📄 setup.sh              # Main setup script
-│   │   └── 📄 test_api.sh           # API testing script
-│   └── 📁 cleanup/                  # Maintenance scripts
-│       └── 📄 cleanup.py            # File cleanup utility
-│
-├── 📁 docs/                         # Documentation
-│   ├── 📄 API_DOCUMENTATION.md      # Complete API documentation
-│   ├── 📁 deployment/               # Deployment guides
-│   │   └── 📄 DEPLOYMENT.md         # Deployment instructions
-│   ├── 📄 README.md                 # Original README
-│   └── 📄 SUMMARY.md                # System summary
-│
-├── 📁 config/                       # Configuration files
-│   ├── 📄 Dockerfile                # Docker configuration
-│   └── 📄 docker-compose.yml        # Docker Compose setup
-│
-└── 📄 README.md                     # This file
-```
+- **Lost Person Reports**: Create, read, update, and delete lost person reports
+- **Image Upload**: Support for JPEG, JPG, PNG, and GIF image uploads (max 10MB)
+- **Search Functionality**: Search lost persons by name or Aadhar number
+- **JSON Database**: Local JSON file storage for simplicity
+- **RESTful API**: Clean REST API design with proper error handling
+- **File Management**: Automatic file organization in uploads directory
 
-## 🚀 Quick Start
+## API Endpoints
 
-### Prerequisites
-- Go 1.21+
-- Python 3.8+
-- FFmpeg
+### Lost Person Management
 
-### Installation
-```bash
-# Clone the repository
-git clone <repository-url>
-cd Trinetr-backend
+- `POST /api/v1/lost-persons/` - Create a new lost person report
+- `GET /api/v1/lost-persons/` - Get all lost person reports
+- `GET /api/v1/lost-persons/:id` - Get a specific lost person report
+- `PUT /api/v1/lost-persons/:id` - Update a lost person report
+- `DELETE /api/v1/lost-persons/:id` - Delete a lost person report
+- `GET /api/v1/lost-persons/search?q=query` - Search lost persons
+- `GET /api/v1/images/:path` - Serve uploaded images
 
-# Run setup script
-./scripts/setup/setup.sh
+### System Endpoints
 
-# Start the server
-cd api && go run main.go
-```
+- `GET /health` - Health check
+- `GET /api/v1/system/status` - System status
+- `GET /api/v1/system/info` - System information
 
-### API Access
-- **API Base URL**: http://localhost:8080
-- **Health Check**: http://localhost:8080/api/health
-- **API Documentation**: See [docs/API_DOCUMENTATION.md](docs/API_DOCUMENTATION.md)
+## Data Model
 
-## 🎯 Features
+Each lost person report contains:
 
-### 🔧 Core Features
-- **High-Accuracy Face Detection**: 98%+ accuracy using dlib
-- **Intelligent Deduplication**: Remove duplicate faces automatically
-- **Video Processing**: Support for multiple video formats
-- **Local Storage**: Complete video and result management
-- **Real-time Processing**: Progress tracking and status updates
-- **Face Search**: Search for matching faces across all videos
+- **ID**: Unique identifier (UUID)
+- **Name**: Full name of the lost person
+- **Aadhar Number**: Aadhar number (required)
+- **Contact Number**: Contact number for when person is found (optional)
+- **Place Lost**: Location where the person was lost
+- **Permanent Address**: Permanent address of the person
+- **Image Path**: Path to the uploaded image file
+- **Upload Timestamp**: When the report was created
 
-### 📊 Storage Management
-- **Video Records**: Complete metadata tracking
-- **Face Images**: Automatic face extraction and storage
-- **Statistics**: Processing metrics and analytics
-- **Cleanup**: Automatic old file management
-- **Search History**: Track all face searches
+## Installation
 
-### 🌐 RESTful API
-- **Modern API Design**: RESTful endpoints with JSON responses
-- **CORS Support**: Cross-origin request support
-- **File Upload**: Multipart form data support
-- **Error Handling**: Comprehensive error responses
-- **Health Monitoring**: Built-in health checks
+1. **Clone the repository**:
+   ```bash
+   git clone <repository-url>
+   cd Trinetr-backend
+   ```
 
-## 📡 API Endpoints
+2. **Install dependencies**:
+   ```bash
+   go mod tidy
+   ```
 
-### Core Endpoints
-- `POST /api/upload-video` - Upload and process video
-- `POST /api/search-by-face` - Search for matching faces
-- `GET /api/health` - Health check
+3. **Run the server**:
+   ```bash
+   go run main.go
+   ```
 
-### Storage Endpoints
-- `GET /api/videos` - List all videos
-- `GET /api/videos/active` - List active videos
-- `GET /api/videos/archived` - List archived videos
-- `GET /api/videos/:id` - Get video details
-- `DELETE /api/videos/:id` - Delete video
-- `POST /api/videos/:id/restore` - Restore archived video
-- `GET /api/videos/stats` - Get statistics
-- `POST /api/videos/cleanup` - Cleanup old videos
-- `GET /api/videos/search` - Search videos
-- `GET /api/videos/:id/preview` - Get video preview
-- `GET /api/videos/:id/file` - Download video file
+   The server will start on port 8080 by default. You can change this by setting the `PORT` environment variable.
 
-### Search History Endpoints
-- `GET /api/search-history` - Get search history
-- `GET /api/search-history/stats` - Get search statistics
+## Usage Examples
 
-### File Serving
-- `GET /api/faces/{filename}` - Serve face images
-
-## 🐳 Docker Deployment
+### Create a Lost Person Report
 
 ```bash
-cd config
-docker-compose up --build
+curl -X POST http://localhost:8080/api/v1/lost-persons/ \
+  -F "name=John Doe" \
+  -F "aadhar_number=123456789012" \
+  -F "contact_number=9876543210" \
+  -F "place_lost=Mumbai Central Station" \
+  -F "permanent_address=123 Main Street, Mumbai" \
+  -F "image=@/path/to/person_photo.jpg"
 ```
 
-## 📚 Documentation
-
-- [Complete API Documentation](docs/API_DOCUMENTATION.md)
-- [Deployment Guide](docs/deployment/DEPLOYMENT.md)
-- [Project Structure](PROJECT_STRUCTURE.md)
-
-## 🛠️ Development
-
-### Project Structure Details
-
-#### `/api` - Backend Services
-- **Go Server**: RESTful API with Gin framework
-- **Python ML**: Face detection and recognition
-- **Storage**: Local JSON-based data management
-- **Handlers**: HTTP request processing
-
-#### `/storage` - Data Management
-- **Videos**: Uploaded video files
-- **Faces**: Extracted face images
-- **Data**: JSON storage files
-- **Temp**: Temporary processing files
-
-#### `/scripts` - Utilities
-- **Setup**: Installation and configuration
-- **Cleanup**: Maintenance and cleanup
-
-#### `/docs` - Documentation
-- **API**: Complete endpoint documentation
-- **Deployment**: Production guides
-
-#### `/config` - Configuration
-- **Docker**: Containerization setup
-- **Environment**: Configuration files
-
-## 🔧 Configuration
-
-### Environment Variables
-```bash
-PORT=8080                    # Server port
-GIN_MODE=release            # Gin mode
-PYTHONPATH=/app/python      # Python path
-```
-
-### Storage Configuration
-- **Video Storage**: `storage/videos/`
-- **Face Storage**: `storage/faces/`
-- **Data Storage**: `storage/data/videos.json`
-- **Search History**: `storage/data/search_history.json`
-
-## 🧪 Testing
+### Get All Lost Person Reports
 
 ```bash
-# Test API endpoints
-./scripts/setup/test_api.sh
-
-# Test video upload
-curl -X POST http://localhost:8080/api/upload-video \
-  -F "video=@your_video.mp4" \
-  -F "location_name=Office Building" \
-  -F "latitude=40.7128" \
-  -F "longitude=-74.0060"
-
-# Test face search
-curl -X POST http://localhost:8080/api/search-by-face \
-  -F "search_image=@face.jpg"
+curl -X GET http://localhost:8080/api/v1/lost-persons/
 ```
 
-## 📊 Performance
+### Search Lost Persons
 
-- **Face Detection Accuracy**: 98%+
-- **Processing Speed**: ~1 frame/second (configurable)
-- **Deduplication**: Configurable similarity threshold
-- **Storage**: Efficient JSON-based storage
-- **API Response Time**: < 100ms for most endpoints
-
-## 🔌 Frontend Integration
-
-This backend is designed to work with any frontend framework. Example integration:
-
-```javascript
-// Upload video
-const formData = new FormData();
-formData.append('video', videoFile);
-formData.append('location_name', 'Office Building');
-
-const response = await fetch('http://localhost:8080/api/upload-video', {
-  method: 'POST',
-  body: formData
-});
-
-// Search faces
-const searchFormData = new FormData();
-searchFormData.append('search_image', imageFile);
-
-const searchResponse = await fetch('http://localhost:8080/api/search-by-face', {
-  method: 'POST',
-  body: searchFormData
-});
+```bash
+curl -X GET "http://localhost:8080/api/v1/lost-persons/search?q=John%20Doe"
 ```
 
-## 🤝 Contributing
+### Get a Specific Report
 
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests if applicable
-5. Submit a pull request
+```bash
+curl -X GET http://localhost:8080/api/v1/lost-persons/{id}
+```
 
-## 📄 License
+## Flutter Integration
 
-This project is licensed under the MIT License.
+The backend is designed to work seamlessly with Flutter applications. See `API_DOCUMENTATION.md` for detailed Flutter integration examples.
 
-## 🆘 Support
+## File Storage
 
-For support and questions:
-- Check the [API Documentation](docs/API_DOCUMENTATION.md)
-- Review [deployment guides](docs/deployment/)
-- Open an issue for bugs or feature requests 
+- **Images**: Stored in the `uploads/` directory with UUID-based filenames
+- **Database**: JSON file (`database.json`) in the project root
+- **File Types**: JPEG, JPG, PNG, GIF (max 10MB)
+
+## Testing
+
+Run the test suite:
+
+```bash
+go test ./internal/handlers/ -v
+```
+
+## Environment Variables
+
+- `PORT`: Server port (default: 8080)
+- `ENVIRONMENT`: Environment mode (development/production)
+
+## Project Structure
+
+```
+├── main.go                 # Application entry point
+├── go.mod                  # Go module file
+├── go.sum                  # Go module checksums
+├── database.json           # JSON database file
+├── uploads/                # Image upload directory
+├── internal/
+│   ├── config/            # Configuration management
+│   ├── database/          # Database layer
+│   ├── handlers/          # HTTP request handlers
+│   ├── middleware/        # HTTP middleware
+│   ├── models/            # Data models
+│   ├── routes/            # Route definitions
+│   └── utils/             # Utility functions
+├── API_DOCUMENTATION.md   # Detailed API documentation
+└── README.md             # This file
+```
+
+## Security Features
+
+- File upload validation (type and size)
+- Path traversal protection for image serving
+- Input validation for all form fields
+- Proper error handling and logging
+
+## Contributing
+
+Please read `CONTRIBUTING.md` for details on our code of conduct and the process for submitting pull requests.
+
+## License
+
+This project is licensed under the MIT License - see the `LICENSE` file for details.

@@ -1,0 +1,12 @@
+[
+  {
+    "id": "7302c83c-6fd8-434d-b291-94f26ccebb53",
+    "name": "John Doe",
+    "aadhar_number": "123456789012",
+    "contact_number": "9876543210",
+    "place_lost": "Mumbai Central",
+    "permanent_address": "123 Main St, Mumbai",
+    "image_path": "uploads/cdafb66d-8ef0-4279-9a3f-2c4c5ee3163d.png",
+    "upload_timestamp": "2025-08-29T12:24:19.504504+05:30"
+  }
+]
