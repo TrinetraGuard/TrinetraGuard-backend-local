@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: trinetraguard-backend
+    env: go
+    plan: free
+    buildCommand: go mod tidy
+    startCommand: go run main.go
+    envVars:
+      - key: ENVIRONMENT
+        value: production
+      - key: GIN_MODE
+        value: release
+    healthCheckPath: /health
+    autoDeploy: true

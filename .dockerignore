@@ -4,36 +4,36 @@
 
 # Documentation
 README.md
+API_DOCUMENTATION.md
+FLUTTER_INTEGRATION_GUIDE.md
+REACT_INTEGRATION.md
+REACT_INTEGRATION_SUMMARY.md
+IMAGE_FETCH_TEST_RESULTS.md
+FLUTTER_QUICK_REFERENCE.md
 CONTRIBUTING.md
 LICENSE
+
+# Test files
+test_image.html
+*.test.go
+*_test.go
+
+# Build artifacts
+trinetraguard-backend
+*.exe
+*.dll
+*.so
+*.dylib
 
 # IDE files
 .vscode/
 .idea/
 *.swp
 *.swo
-*~
 
 # OS files
 .DS_Store
-.DS_Store?
-._*
-.Spotlight-V100
-.Trashes
-ehthumbs.db
 Thumbs.db
-
-# Build artifacts
-trinetraguard-backend
-trinetraguard-backend_unix
-*.exe
-*.dll
-*.so
-*.dylib
-
-# Test files
-*.test
-*.out
 
 # Logs
 *.log
@@ -41,13 +41,8 @@ trinetraguard-backend_unix
 # Environment files
 .env
 .env.local
-.env.*.local
+.env.production
 
 # Temporary files
-tmp/
-temp/
-
-# Docker files
-Dockerfile
-.dockerignore
-docker-compose.yml
+*.tmp
+*.temp

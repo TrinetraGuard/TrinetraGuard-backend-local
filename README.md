@@ -42,7 +42,9 @@ Each lost person report contains:
 - **Image Path**: Path to the uploaded image file
 - **Upload Timestamp**: When the report was created
 
-## Installation
+## Installation & Setup
+
+### Local Development
 
 1. **Clone the repository**:
    ```bash
@@ -55,12 +57,103 @@ Each lost person report contains:
    go mod tidy
    ```
 
-3. **Run the server**:
+3. **Start the server**:
    ```bash
+   # Default port (8080)
    go run main.go
+   
+   # Custom port
+   PORT=8081 go run main.go
+   
+   # Production mode
+   GIN_MODE=release go run main.go
    ```
 
-   The server will start on port 8080 by default. You can change this by setting the `PORT` environment variable.
+### Render Deployment
+
+This backend is configured for deployment on Render. Follow these steps:
+
+1. **Connect your repository to Render**
+2. **Create a new Web Service**
+3. **Configure the service**:
+   - **Build Command**: `go mod tidy`
+   - **Start Command**: `go run main.go`
+   - **Environment**: Go
+
+4. **Set Environment Variables** (optional):
+   - `PORT`: Server port (Render will set this automatically)
+   - `ENVIRONMENT`: `production`
+
+### Docker Deployment
+
+You can also deploy using Docker:
+
+```bash
+# Build the Docker image
+docker build -t trinetraguard-backend .
+
+# Run the container
+docker run -p 8080:8080 trinetraguard-backend
+
+# Run with custom port
+docker run -p 8081:8080 -e PORT=8080 trinetraguard-backend
+```
+
+### Deployment Script
+
+For convenience, use the included deployment script:
+
+```bash
+# Make script executable (first time only)
+chmod +x deploy.sh
+
+# Quick start
+./deploy.sh
+
+# Custom configurations
+./deploy.sh -p 8081           # Custom port
+./deploy.sh -e production     # Production mode
+./deploy.sh -d                # Docker mode
+./deploy.sh -b                # Build Docker image
+./deploy.sh --help            # Show all options
+```
+
+## Quick Start Commands
+
+```bash
+# Install dependencies
+go mod tidy
+
+# Start server (development)
+go run main.go
+
+# Start server (custom port)
+PORT=8081 go run main.go
+
+# Start server (production mode)
+GIN_MODE=release go run main.go
+
+# Run tests
+go test ./internal/handlers/ -v
+
+# Build for production
+go build -o trinetraguard-backend main.go
+
+# Run built binary
+./trinetraguard-backend
+
+# Docker commands
+docker build -t trinetraguard-backend .
+docker run -p 8080:8080 trinetraguard-backend
+
+# Using deployment script
+./deploy.sh                    # Default settings
+./deploy.sh -p 8081           # Custom port
+./deploy.sh -e production     # Production mode
+./deploy.sh -d                # Docker mode
+./deploy.sh -b                # Build Docker image
+./deploy.sh --help            # Show help
+```
 
 ## Usage Examples
 
@@ -114,8 +207,58 @@ go test ./internal/handlers/ -v
 
 ## Environment Variables
 
+### Local Development
 - `PORT`: Server port (default: 8080)
 - `ENVIRONMENT`: Environment mode (development/production)
+
+### Render Deployment
+- `PORT`: Automatically set by Render
+- `ENVIRONMENT`: Set to `production` for Render deployment
+
+## Render Deployment Guide
+
+### Prerequisites
+- GitHub repository with your code
+- Render account
+
+### Deployment Steps
+
+1. **Connect Repository**:
+   - Go to [Render Dashboard](https://dashboard.render.com)
+   - Click "New +" → "Web Service"
+   - Connect your GitHub repository
+
+2. **Configure Service**:
+   - **Name**: `trinetraguard-backend` (or your preferred name)
+   - **Environment**: `Go`
+   - **Build Command**: `go mod tidy`
+   - **Start Command**: `go run main.go`
+   - **Plan**: Choose appropriate plan (Free tier available)
+
+3. **Environment Variables** (optional):
+   - `ENVIRONMENT`: `production`
+   - `GIN_MODE`: `release`
+
+4. **Deploy**:
+   - Click "Create Web Service"
+   - Render will automatically build and deploy your application
+
+### Important Notes for Render
+
+- **File Storage**: Render's file system is ephemeral. For production, consider using cloud storage (AWS S3, Google Cloud Storage) for images
+- **Database**: For production, consider using a persistent database (PostgreSQL, MongoDB) instead of JSON file
+- **CORS**: Update CORS settings to allow your frontend domain
+- **Port**: Render automatically sets the `PORT` environment variable
+
+### Production Considerations
+
+For production deployment, consider these improvements:
+
+1. **Persistent Storage**: Use cloud storage for images
+2. **Database**: Use a proper database (PostgreSQL, MongoDB)
+3. **Environment Variables**: Set all sensitive configuration via environment variables
+4. **Logging**: Implement proper logging for production
+5. **Monitoring**: Add health checks and monitoring
 
 ## Project Structure
 
@@ -151,3 +294,51 @@ Please read `CONTRIBUTING.md` for details on our code of conduct and the process
 ## License
 
 This project is licensed under the MIT License - see the `LICENSE` file for details.
+
+## 🚀 Deployment Summary
+
+### **Quick Start Commands**
+
+| **Method** | **Command** | **Description** |
+|------------|-------------|-----------------|
+| **Local** | `go run main.go` | Start development server |
+| **Custom Port** | `PORT=8081 go run main.go` | Start on specific port |
+| **Production** | `GIN_MODE=release go run main.go` | Start in production mode |
+| **Script** | `./deploy.sh` | Use deployment script |
+| **Docker** | `docker run -p 8080:8080 trinetraguard-backend` | Run with Docker |
+
+### **Render Deployment (Recommended)**
+
+1. **Connect your GitHub repository to Render**
+2. **Use the included `render.yaml` for automatic deployment**
+3. **Or manually configure:**
+   - **Build Command**: `go mod tidy`
+   - **Start Command**: `go run main.go`
+   - **Environment**: Go
+
+### **All Deployment Options**
+
+- ✅ **Local Development**: `go run main.go`
+- ✅ **Deployment Script**: `./deploy.sh`
+- ✅ **Docker**: `docker build && docker run`
+- ✅ **Render**: Automatic deployment with `render.yaml`
+- ✅ **Production**: Environment variables configured
+
+### **Health Check**
+
+Test your deployment:
+```bash
+curl http://localhost:8080/health
+```
+
+**Expected Response:**
+```json
+{
+  "status": "ok",
+  "message": "TrinetraGuard Backend is running",
+  "timestamp": "2025-08-29T07:29:20.407929Z",
+  "version": "1.0.0"
+}
+```
+
+For detailed deployment instructions, see `DEPLOYMENT_GUIDE.md`.
