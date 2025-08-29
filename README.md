@@ -1,6 +1,6 @@
-# Trinetr-backend - Video Processing System
+# TrinetraGuard Backend - Video Processing API
 
-A high-accuracy video face detection and recognition system built with Go and Python, featuring intelligent deduplication and comprehensive storage management.
+A high-accuracy video face detection and recognition system built with Go and Python, featuring intelligent deduplication and comprehensive storage management. This is a standalone backend API designed to work with any frontend application.
 
 ## 🏗️ Project Structure
 
@@ -11,28 +11,24 @@ Trinetr-backend/
 │   │   ├── 📄 video_handlers.go     # Video upload and processing
 │   │   └── 📄 storage_handlers.go   # Storage management
 │   ├── 📁 models/                   # Data models and storage
-│   │   └── 📄 video_storage.go      # Video record management
-│   ├── 📁 middleware/               # Custom middleware (empty)
-│   ├── 📁 utils/                    # Utility functions (empty)
+│   │   ├── 📄 video_storage.go      # Video record management
+│   │   └── 📄 search_history.go     # Search history management
 │   ├── 📁 python/                   # Python ML components
 │   │   ├── 📄 face_detect.py        # Main face detection script
+│   │   ├── 📄 face_search.py        # Face search and comparison
 │   │   └── 📄 requirements.txt      # Python dependencies
 │   ├── 📁 venv/                     # Python virtual environment
 │   ├── 📄 main.go                   # Server entry point
 │   ├── 📄 go.mod                    # Go dependencies
 │   └── 📄 go.sum                    # Go dependency checksums
 │
-├── 📁 frontend/                     # Web interface
-│   ├── 📁 pages/                    # HTML pages
-│   │   ├── 📄 index.html            # Main upload interface
-│   │   └── 📄 storage.html          # Storage management interface
-│   └── 📁 assets/                   # CSS, JS, images (empty)
-│
 ├── 📁 storage/                      # Data storage
 │   ├── 📁 videos/                   # Uploaded video files
 │   ├── 📁 faces/                    # Extracted face images
+│   ├── 📁 temp/                     # Temporary files
 │   └── 📁 data/                     # JSON storage files
-│       └── 📄 videos.json           # Video records database
+│       ├── 📄 videos.json           # Video records database
+│       └── 📄 search_history.json   # Search history database
 │
 ├── 📁 scripts/                      # Utility scripts
 │   ├── 📁 setup/                    # Setup and installation
@@ -42,10 +38,9 @@ Trinetr-backend/
 │       └── 📄 cleanup.py            # File cleanup utility
 │
 ├── 📁 docs/                         # Documentation
-│   ├── 📁 api/                      # API documentation (empty)
+│   ├── 📄 API_DOCUMENTATION.md      # Complete API documentation
 │   ├── 📁 deployment/               # Deployment guides
 │   │   └── 📄 DEPLOYMENT.md         # Deployment instructions
-│   ├── 📁 user-guide/               # User guides (empty)
 │   ├── 📄 README.md                 # Original README
 │   └── 📄 SUMMARY.md                # System summary
 │
@@ -76,10 +71,10 @@ cd Trinetr-backend
 cd api && go run main.go
 ```
 
-### Access the Application
-- **Main Interface**: http://localhost:8080
-- **Storage Management**: http://localhost:8080/storage
-- **API Health**: http://localhost:8080/api/health
+### API Access
+- **API Base URL**: http://localhost:8080
+- **Health Check**: http://localhost:8080/api/health
+- **API Documentation**: See [docs/API_DOCUMENTATION.md](docs/API_DOCUMENTATION.md)
 
 ## 🎯 Features
 
@@ -89,32 +84,48 @@ cd api && go run main.go
 - **Video Processing**: Support for multiple video formats
 - **Local Storage**: Complete video and result management
 - **Real-time Processing**: Progress tracking and status updates
+- **Face Search**: Search for matching faces across all videos
 
 ### 📊 Storage Management
 - **Video Records**: Complete metadata tracking
 - **Face Images**: Automatic face extraction and storage
 - **Statistics**: Processing metrics and analytics
 - **Cleanup**: Automatic old file management
+- **Search History**: Track all face searches
 
-### 🌐 Web Interface
-- **Modern UI**: Beautiful, responsive design
-- **Drag & Drop**: Easy video upload
-- **Progress Tracking**: Real-time processing status
-- **Results Display**: Grid view of detected faces
-- **Storage Dashboard**: Complete video management
+### 🌐 RESTful API
+- **Modern API Design**: RESTful endpoints with JSON responses
+- **CORS Support**: Cross-origin request support
+- **File Upload**: Multipart form data support
+- **Error Handling**: Comprehensive error responses
+- **Health Monitoring**: Built-in health checks
 
 ## 📡 API Endpoints
 
 ### Core Endpoints
 - `POST /api/upload-video` - Upload and process video
+- `POST /api/search-by-face` - Search for matching faces
 - `GET /api/health` - Health check
 
 ### Storage Endpoints
 - `GET /api/videos` - List all videos
+- `GET /api/videos/active` - List active videos
+- `GET /api/videos/archived` - List archived videos
 - `GET /api/videos/:id` - Get video details
 - `DELETE /api/videos/:id` - Delete video
+- `POST /api/videos/:id/restore` - Restore archived video
 - `GET /api/videos/stats` - Get statistics
 - `POST /api/videos/cleanup` - Cleanup old videos
+- `GET /api/videos/search` - Search videos
+- `GET /api/videos/:id/preview` - Get video preview
+- `GET /api/videos/:id/file` - Download video file
+
+### Search History Endpoints
+- `GET /api/search-history` - Get search history
+- `GET /api/search-history/stats` - Get search statistics
+
+### File Serving
+- `GET /api/faces/{filename}` - Serve face images
 
 ## 🐳 Docker Deployment
 
@@ -125,9 +136,9 @@ docker-compose up --build
 
 ## 📚 Documentation
 
-- [API Documentation](docs/api/)
-- [Deployment Guide](docs/deployment/)
-- [User Guide](docs/user-guide/)
+- [Complete API Documentation](docs/API_DOCUMENTATION.md)
+- [Deployment Guide](docs/deployment/DEPLOYMENT.md)
+- [Project Structure](PROJECT_STRUCTURE.md)
 
 ## 🛠️ Development
 
@@ -137,25 +148,21 @@ docker-compose up --build
 - **Go Server**: RESTful API with Gin framework
 - **Python ML**: Face detection and recognition
 - **Storage**: Local JSON-based data management
-
-#### `/frontend` - Web Interface
-- **Pages**: HTML templates
-- **Assets**: CSS, JavaScript, images
-- **Responsive**: Mobile-friendly design
+- **Handlers**: HTTP request processing
 
 #### `/storage` - Data Management
 - **Videos**: Uploaded video files
 - **Faces**: Extracted face images
 - **Data**: JSON storage files
+- **Temp**: Temporary processing files
 
 #### `/scripts` - Utilities
 - **Setup**: Installation and configuration
 - **Cleanup**: Maintenance and cleanup
 
 #### `/docs` - Documentation
-- **API**: Endpoint documentation
+- **API**: Complete endpoint documentation
 - **Deployment**: Production guides
-- **User Guide**: Usage instructions
 
 #### `/config` - Configuration
 - **Docker**: Containerization setup
@@ -174,6 +181,7 @@ PYTHONPATH=/app/python      # Python path
 - **Video Storage**: `storage/videos/`
 - **Face Storage**: `storage/faces/`
 - **Data Storage**: `storage/data/videos.json`
+- **Search History**: `storage/data/search_history.json`
 
 ## 🧪 Testing
 
@@ -183,7 +191,14 @@ PYTHONPATH=/app/python      # Python path
 
 # Test video upload
 curl -X POST http://localhost:8080/api/upload-video \
-  -F "video=@your_video.mp4"
+  -F "video=@your_video.mp4" \
+  -F "location_name=Office Building" \
+  -F "latitude=40.7128" \
+  -F "longitude=-74.0060"
+
+# Test face search
+curl -X POST http://localhost:8080/api/search-by-face \
+  -F "search_image=@face.jpg"
 ```
 
 ## 📊 Performance
@@ -192,6 +207,32 @@ curl -X POST http://localhost:8080/api/upload-video \
 - **Processing Speed**: ~1 frame/second (configurable)
 - **Deduplication**: Configurable similarity threshold
 - **Storage**: Efficient JSON-based storage
+- **API Response Time**: < 100ms for most endpoints
+
+## 🔌 Frontend Integration
+
+This backend is designed to work with any frontend framework. Example integration:
+
+```javascript
+// Upload video
+const formData = new FormData();
+formData.append('video', videoFile);
+formData.append('location_name', 'Office Building');
+
+const response = await fetch('http://localhost:8080/api/upload-video', {
+  method: 'POST',
+  body: formData
+});
+
+// Search faces
+const searchFormData = new FormData();
+searchFormData.append('search_image', imageFile);
+
+const searchResponse = await fetch('http://localhost:8080/api/search-by-face', {
+  method: 'POST',
+  body: searchFormData
+});
+```
 
 ## 🤝 Contributing
 
@@ -208,6 +249,6 @@ This project is licensed under the MIT License.
 ## 🆘 Support
 
 For support and questions:
-- Check the [documentation](docs/)
+- Check the [API Documentation](docs/API_DOCUMENTATION.md)
 - Review [deployment guides](docs/deployment/)
 - Open an issue for bugs or feature requests 
